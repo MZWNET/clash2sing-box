@@ -32,8 +32,7 @@
         "--outbound.selector.tag",
         "selector-a,selector-z",
         "--mergeable",
-        "./src/tests/sing-box-mergeable.json",
-
+        "./src/tests/sing-box-mergeable.json"
       ],
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "deno",

@@ -1,54 +1,11 @@
 import { Command, ValidationError } from "@cliffy/command";
 
-import { convert, merge } from "./libs/utils.ts";
+import { convert, merge, type Options } from "./libs/utils.ts";
 
 await new Command()
   .name("clash2sing-box")
   .description("Clash to sing-box configuration converter")
   .command("convert <input:string> <output:string>", "Convert configuration")
-  .option(
-    "--experimental.cachefile.enabled <boolean:boolean>",
-    "Enable cache file feature",
-  )
-  .option(
-    "--experimental.cachefile.path <path:string>",
-    "Path to the cache file",
-    { depends: ["experimental.cachefile.path"] },
-  )
-  .option(
-    "--experimental.cachefile.storefakeip <boolean:boolean>",
-    "Store fakeip in the cache file",
-    { depends: ["experimental.cachefile.path"] },
-  )
-  .option(
-    "--experimental.cachefile.storerdrc <boolean:boolean>",
-    "Store rejected DNS response cache in the cache file",
-    { depends: ["experimental.cachefile.path"] },
-  )
-  .option(
-    "--experimental.cachefile.cacheid <string:string>",
-    "Identifier for the configuration",
-    { depends: ["experimental.cachefile.path"] },
-  )
-  .option(
-    "--experimental.clashapi.externalcontroller <address:string>",
-    "Clash API listening address",
-  )
-  .option(
-    "--experimental.clashapi.externalui <path:string>",
-    "Path to a directory in which the external UI is stored",
-    { depends: ["experimental.clashapi.externalcontroller"] },
-  )
-  .option(
-    "--experimental.clashapi.externaluidownloadurl <url:string>",
-    "URL to a ZIP to download the external UI",
-    { depends: ["experimental.clashapi.externalcontroller"] },
-  )
-  .option(
-    "--experimental.clashapi.secret <string:string>",
-    "A Bearer token for API Authorization",
-    { depends: ["experimental.clashapi.externalcontroller"] },
-  )
   .option(
     "--outbound.domainresolver.tag <string:string>",
     "The name of the domain resolver, required for setting resolver strategy",
@@ -72,14 +29,20 @@ await new Command()
       }
     },
   )
-  .action((options, input, output) => {
-    Deno.writeTextFileSync(
-      output,
-      convert(Deno.readTextFileSync(input), options),
-    );
+  .action(async (options: Options, input: string, output: string) => {
+    const content = /^https?:\/\//.test(input)
+      ? await (await fetch(input, { headers: { "User-Agent": "ClashMeta" } }))
+        .text()
+      : Deno.readTextFileSync(input);
+    const converted = convert(content, options);
+    if (output === "-" || output === "stdout") {
+      console.log(converted);
+    } else {
+      Deno.writeTextFileSync(output, converted);
+    }
   })
   .command("merge <input...:string>", "Merge multiple JSON files")
-  .action((_, ...input) => {
+  .action((_: unknown, ...input: string[]) => {
     console.log(
       merge(...input.map((i) => JSON.parse(Deno.readTextFileSync(i)))),
     );

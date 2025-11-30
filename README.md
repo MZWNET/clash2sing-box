@@ -6,26 +6,26 @@
 
 #### Protocols
 
-|Name|Status|Note|
-|---|---|---|
-|AnyTLS|O||
-|HTTP|O|sing-box limitation: layer tls not supported|
-|Hysteria|O|sing-box limitation: protocol faketcp or wechat-video not supported|
-|Shadowsocks|O||
-|Socks|O||
-|Trojan|?|Trojan-Go features not implemented|
-|TUIC|O||
-|Vmess|O|sing-box limitation: protocol tcp not supported|
-|VLESS|O|sing-box limitation: protocol tcp not supported|
+| Name        | Status | Note                                                                |
+| ----------- | ------ | ------------------------------------------------------------------- |
+| AnyTLS      | O      |                                                                     |
+| HTTP        | O      | sing-box limitation: layer tls not supported                        |
+| Hysteria    | O      | sing-box limitation: protocol faketcp or wechat-video not supported |
+| Shadowsocks | O      |                                                                     |
+| Socks       | O      |                                                                     |
+| Trojan      | ?      | Trojan-Go features not implemented                                  |
+| TUIC        | O      |                                                                     |
+| Vmess       | O      | sing-box limitation: protocol tcp not supported                     |
+| VLESS       | O      | sing-box limitation: protocol tcp not supported                     |
 
 #### Options
 
-|Name|Status|Note|
-|---|---|---|
-|TCP-only|O||
-|IP Version|?|Only option `ip-version` is implemented|
-|TLS Certificate Pinning|?|Implemented via proprietary option `x-clash2singbox-certificate`|
-|TLS Certificate Public Key Pinning|?|Implemented via proprietary option `x-clash2singbox-certificate-public-key-sha256`|
+| Name                               | Status | Note                                                                               |
+| ---------------------------------- | ------ | ---------------------------------------------------------------------------------- |
+| TCP-only                           | O      |                                                                                    |
+| IP Version                         | ?      | Only option `ip-version` is implemented                                            |
+| TLS Certificate Pinning            | ?      | Implemented via proprietary option `x-clash2singbox-certificate`                   |
+| TLS Certificate Public Key Pinning | ?      | Implemented via proprietary option `x-clash2singbox-certificate-public-key-sha256` |
 
 ## Usage
 
@@ -49,12 +49,13 @@ Options:
   --experimental.clashapi.secret                 <string>   - A Bearer token for API Authorization                           (Depends: --experimental.clashapi.externalcontroller)
   --outbound.selector.default                    <integer>  - Use the n-th outbound as the default in the selector outbound                                                       
   --outbound.selector.tag                        <string>   - The name(s) of the selector outbound(s)                                                                             
-  --mergeable                                    <path>     - External configuration to merge after the conversion     
+  --mergeable                                    <path>     - External configuration to merge after the conversion
 ```
 
 ### Install Deno
 
-- BSD/Linux/macOS: find more information on [repology.org](https://repology.org/project/deno/versions)
+- BSD/Linux/macOS: find more information on
+  [repology.org](https://repology.org/project/deno/versions)
 - Windows: `winget install DenoLand.Deno`
 
 ### Convert Configuration
