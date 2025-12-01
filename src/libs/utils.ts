@@ -1,5 +1,4 @@
 import { deepmerge } from "deepmerge-ts";
-import * as yaml from "yaml";
 import {
   Clash,
   type SingboxOutbounds,
@@ -17,10 +16,15 @@ import { doConvertTUIC } from "./converters/tuic.ts";
 import { doConvertVmess } from "./converters/vmess.ts";
 import { doConvertVLESS } from "./converters/vless.ts";
 
+// --- Helper Interfaces for Type Safety ---
+
+interface SingboxConfig {
+  outbounds?: (SingboxOutbounds | SingboxOutboundSelector)[];
+
+  [key: string]: any;
+}
+
 export type Options = {
-  mergeable?: {
-    value: object;
-  };
   outbound?: {
     domainresolver?: {
       tag?: string;
@@ -33,90 +37,103 @@ export type Options = {
 };
 
 export function convert(
-  input: string,
+  clashInput: object,
+  singboxInput: SingboxConfig,
   options: Options,
 ): string {
-  const clash: Clash = Clash.parse(yaml.parse(input));
+  const clash = Clash.safeParse(clashInput);
+  const allOutbounds: (SingboxOutbounds | SingboxOutboundSelector)[] = [];
 
-  const outbounds: (SingboxOutbounds | SingboxOutboundSelector)[] = [];
+  // 1. Process Clash proxies
+  if (clash.success) {
+    for (const proxy of clash.data.proxies) {
+      let outbound: SingboxOutbounds;
 
+      switch (proxy.type) {
+        case "anytls":
+          outbound = doConvertAnyTls(proxy);
+          break;
+        case "http":
+          outbound = doConvertHttp(proxy);
+          break;
+        case "hysteria":
+          outbound = doConvertHysteria(proxy);
+          break;
+        case "hysteria2":
+          outbound = doConvertHysteria2(proxy);
+          break;
+        case "ss":
+          outbound = doConvertShadowsocks(proxy);
+          break;
+        case "socks5":
+          outbound = doConvertSocks5ToSocks(proxy);
+          break;
+        case "ssh":
+          outbound = doConvertSSH(proxy);
+          break;
+        case "trojan":
+          outbound = doConvertTrojan(proxy);
+          break;
+        case "tuic":
+          outbound = doConvertTUIC(proxy);
+          break;
+        case "vmess":
+          outbound = doConvertVmess(proxy);
+          break;
+        case "vless":
+          outbound = doConvertVLESS(proxy);
+          break;
+        default:
+          console.warn(`Unknown proxy type: ${(proxy as any).type}`);
+          continue;
+      }
+
+      if (proxy.udp === false) {
+        outbound.network = "tcp";
+      }
+
+      if (proxy["ip-version"] !== undefined) {
+        if (options.outbound?.domainresolver?.tag !== undefined) {
+          outbound.domain_resolver = {
+            server: options.outbound?.domainresolver?.tag,
+          };
+          switch (proxy["ip-version"]) {
+            case "ipv6-prefer":
+              outbound.domain_resolver.strategy = "prefer_ipv6";
+              break;
+            case "ipv4-prefer":
+              outbound.domain_resolver.strategy = "prefer_ipv4";
+              break;
+            case "ipv6":
+              outbound.domain_resolver.strategy = "ipv6_only";
+              break;
+            case "ipv4":
+              outbound.domain_resolver.strategy = "ipv4_only";
+              break;
+          }
+        }
+      }
+
+      allOutbounds.push(outbound);
+    }
+  }
+
+  // 2. Add outbounds from sing-box config
+  if (singboxInput.outbounds) {
+    allOutbounds.push(...singboxInput.outbounds);
+  }
+
+  // 3. Create selector(s)
   const singboxOutboundSelector: SingboxOutboundSelector = {
     type: "selector",
     tag: "selector",
-    outbounds: [],
+    outbounds: allOutbounds.map((o) => o.tag),
   };
 
-  for (const proxy of clash.proxies) {
-    let outbound: SingboxOutbounds;
-
-    switch (proxy.type) {
-      case "anytls":
-        outbound = doConvertAnyTls(proxy);
-        break;
-      case "http":
-        outbound = doConvertHttp(proxy);
-        break;
-      case "hysteria":
-        outbound = doConvertHysteria(proxy);
-        break;
-      case "hysteria2":
-        outbound = doConvertHysteria2(proxy);
-        break;
-      case "ss":
-        outbound = doConvertShadowsocks(proxy);
-        break;
-      case "socks5":
-        outbound = doConvertSocks5ToSocks(proxy);
-        break;
-      case "ssh":
-        outbound = doConvertSSH(proxy);
-        break;
-      case "trojan":
-        outbound = doConvertTrojan(proxy);
-        break;
-      case "tuic":
-        outbound = doConvertTUIC(proxy);
-        break;
-      case "vmess":
-        outbound = doConvertVmess(proxy);
-        break;
-      case "vless":
-        outbound = doConvertVLESS(proxy);
-        break;
-    }
-
-    if (proxy.udp === false) {
-      outbound.network = "tcp";
-    }
-
-    if (proxy["ip-version"] !== undefined) {
-      if (options.outbound?.domainresolver?.tag !== undefined) {
-        outbound.domain_resolver = {
-          server: options.outbound?.domainresolver?.tag,
-        };
-        switch (proxy["ip-version"]) {
-          case "ipv6-prefer":
-            outbound.domain_resolver.strategy = "prefer_ipv6";
-            break;
-          case "ipv4-prefer":
-            outbound.domain_resolver.strategy = "prefer_ipv4";
-            break;
-          case "ipv6":
-            outbound.domain_resolver.strategy = "ipv6_only";
-            break;
-          case "ipv4":
-            outbound.domain_resolver.strategy = "ipv4_only";
-            break;
-        }
-      }
-    }
-
-    outbounds.push(outbound);
-    singboxOutboundSelector.outbounds.push(outbound.tag);
-  }
+  const selectors: SingboxOutboundSelector[] = [];
 
   if (options.outbound?.selector?.default != undefined) {
-    const outbound = outbounds.at(options.outbound.selector.default);
+    const outbound = allOutbounds.at(options.outbound.selector.default);
     if (outbound != undefined) {
       singboxOutboundSelector.default = outbound.tag;
     } else {
@@ -128,27 +145,31 @@ export function convert(
     for (const tag of options.outbound.selector.tag) {
       const selector = structuredClone(singboxOutboundSelector);
       selector.tag = tag;
-      outbounds.push(SingboxOutboundSelector.parse(selector));
+      selectors.push(SingboxOutboundSelector.parse(selector));
     }
   } else {
-    outbounds.push(
-      SingboxOutboundSelector.parse(singboxOutboundSelector),
-    );
+    selectors.push(SingboxOutboundSelector.parse(singboxOutboundSelector));
   }
 
-  const result = { outbounds };
+  // 4. Construct final config
+  let finalConfig: SingboxConfig = {
+    outbounds: [...allOutbounds, ...selectors],
+  };
 
-  if (options.mergeable !== undefined) {
-    return JSON.stringify(
-      merge(options.mergeable.value, result),
-      null,
-      2,
-    );
-  } else {
-    return JSON.stringify(result, null, 2);
-  }
+  // 5. Merge raw sing-box config (for dns, log, etc.)
+  const { outbounds: _outbounds, ...restOfSingboxInput } = singboxInput;
+  finalConfig = merge(finalConfig, restOfSingboxInput);
+
+  return JSON.stringify(finalConfig, null, 2);
 }
 
 export function merge(...objects: object[]): object {
-  return deepmerge(...objects) as object;
+  // Filter out empty objects before merging
+  const objectsToMerge = objects.filter(
+    (obj) => obj && Object.keys(obj).length > 0,
+  );
+  if (objectsToMerge.length === 0) {
+    return {};
+  }
+  return deepmerge(...objectsToMerge) as object;
 }
