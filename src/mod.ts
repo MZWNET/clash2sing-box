@@ -1,4 +1,4 @@
-import { Command, ValidationError } from "@cliffy/command";
+import { Command } from "@cliffy/command";
 import * as yaml from "yaml";
 
 import { convert, merge, type Options } from "./libs/utils.ts";
