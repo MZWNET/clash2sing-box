@@ -1,8 +1,10 @@
 import { deepmerge } from "deepmerge-ts";
 import {
   Clash,
+  ClashProxies,
   type SingboxOutbounds,
   SingboxOutboundSelector,
+  type SingboxOutboundURLTest,
 } from "./types.ts";
 import { doConvertAnyTls } from "./converters/anytls.ts";
 import { doConvertHttp } from "./converters/http.ts";
@@ -19,7 +21,8 @@ import { doConvertVLESS } from "./converters/vless.ts";
 // --- Helper Interfaces for Type Safety ---
 
 interface SingboxConfig {
-  outbounds?: (SingboxOutbounds | SingboxOutboundSelector)[];
+  outbounds?:
+    (SingboxOutbounds | SingboxOutboundSelector | SingboxOutboundURLTest)[];
 
   [key: string]: any;
 }
@@ -42,11 +45,25 @@ export function convert(
   options: Options,
 ): string {
   const clash = Clash.safeParse(clashInput);
-  const allOutbounds: (SingboxOutbounds | SingboxOutboundSelector)[] = [];
+  const allOutbounds: (
+    | SingboxOutbounds
+    | SingboxOutboundSelector
+    | SingboxOutboundURLTest
+  )[] = [];
 
   // 1. Process Clash proxies
   if (clash.success) {
-    for (const proxy of clash.data.proxies) {
+    for (const rawProxy of clash.data.proxies) {
+      const proxyResult = ClashProxies.safeParse(rawProxy);
+
+      if (!proxyResult.success) {
+        console.warn(
+          `Skipping unsupported proxy "${rawProxy.name}" (type: ${rawProxy.type})`,
+        );
+        continue;
+      }
+
+      const proxy = proxyResult.data;
       let outbound: SingboxOutbounds;
 
       switch (proxy.type) {
@@ -83,9 +100,6 @@ export function convert(
         case "vless":
           outbound = doConvertVLESS(proxy);
           break;
-        default:
-          console.warn(`Unknown proxy type: ${(proxy as any).type}`);
-          continue;
       }
 
       if (proxy.udp === false) {
@@ -123,11 +137,20 @@ export function convert(
     allOutbounds.push(...singboxInput.outbounds);
   }
 
-  // 3. Create selector(s)
+  // 3. Create selector(s) and URLTest
+  const allOutboundTags = allOutbounds.map((o) => o.tag);
+
+  const singboxOutboundURLTest: SingboxOutboundURLTest = {
+    type: "urltest",
+    tag: "urltest-proxy",
+    outbounds: allOutboundTags,
+  };
+
   const singboxOutboundSelector: SingboxOutboundSelector = {
     type: "selector",
-    tag: "selector",
-    outbounds: allOutbounds.map((o) => o.tag),
+    tag: "proxy",
+    outbounds: [singboxOutboundURLTest.tag, ...allOutboundTags],
+    default: singboxOutboundURLTest.tag,
   };
 
   const selectors: SingboxOutboundSelector[] = [];
@@ -153,7 +176,7 @@ export function convert(
 
   // 4. Construct final config
   let finalConfig: SingboxConfig = {
-    outbounds: [...allOutbounds, ...selectors],
+    outbounds: [...selectors, singboxOutboundURLTest, ...allOutbounds],
   };
 
   // 5. Merge raw sing-box config (for dns, log, etc.)

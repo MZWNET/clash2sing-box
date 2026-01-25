@@ -182,8 +182,17 @@ export const ClashProxies = z.discriminatedUnion("type", [
   ClashProxyVmess,
   ClashProxyVLESS,
 ]);
+// ClashProxyRaw: accepts any object with at least name, server, port, type
+// Used for lenient parsing - unknown types are skipped with warnings
+export const ClashProxyRaw = z.object({
+  name: z.string(),
+  server: z.string(),
+  port: z.number(),
+  type: z.string(),
+}).passthrough();
+
 export const Clash = z.object({
-  proxies: z.array(ClashProxies),
+  proxies: z.array(ClashProxyRaw),
 });
 
 export type ClashProxy = z.infer<typeof ClashProxy>;
@@ -320,6 +329,16 @@ export const SingboxOutboundSelector = z.object({
   outbounds: z.array(z.string()),
   default: z.optional(z.string()),
 });
+export const SingboxOutboundURLTest = z.object({
+  type: z.literal("urltest"),
+  tag: z.string(),
+  outbounds: z.array(z.string()),
+  url: z.optional(z.string()),
+  interval: z.optional(z.string()),
+  tolerance: z.optional(z.number()),
+  idle_timeout: z.optional(z.string()),
+  interrupt_exist_connections: z.optional(z.boolean()),
+});
 export const SingboxOutboundShadowsocks = SingboxOutbound.extend({
   type: z.literal("shadowsocks"),
   method: z.enum([
@@ -442,6 +461,7 @@ export type SingboxOutboundAnyTls = z.infer<typeof SingboxOutboundAnyTls>;
 export type SingboxOutboundHttp = z.infer<typeof SingboxOutboundHttp>;
 export type SingboxOutboundHysteria = z.infer<typeof SingboxOutboundHysteria>;
 export type SingboxOutboundHysteria2 = z.infer<typeof SingboxOutboundHysteria2>;
+export type SingboxOutboundURLTest = z.infer<typeof SingboxOutboundURLTest>;
 export type SingboxOutboundSelector = z.infer<typeof SingboxOutboundSelector>;
 export type SingboxOutboundShadowsocks = z.infer<
   typeof SingboxOutboundShadowsocks

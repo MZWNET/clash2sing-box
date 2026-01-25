@@ -10,7 +10,7 @@
     "jsr:@std/fmt@~1.0.2": "1.0.8",
     "jsr:@std/text@~1.0.7": "1.0.16",
     "npm:@types/node@*": "24.2.0",
-    "npm:zod@^4.1.13": "4.1.13"
+    "npm:zod@^4.2.1": "4.2.1"
   },
   "jsr": {
     "@cliffy/command@1.0.0-rc.8": {
@@ -63,9 +63,9 @@
       "integrity": "sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag==",
       "tarball": "https://registry.npmmirror.com/undici-types/-/undici-types-7.10.0.tgz"
     },
-    "zod@4.1.13": {
-      "integrity": "sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig==",
-      "tarball": "https://registry.npmmirror.com/zod/-/zod-4.1.13.tgz"
+    "zod@4.2.1": {
+      "integrity": "sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw==",
+      "tarball": "https://registry.npmmirror.com/zod/-/zod-4.2.1.tgz"
     }
   },
   "remote": {
@@ -107,7 +107,7 @@
       "jsr:@cliffy/command@^1.0.0-rc.8",
       "jsr:@eemeli/yaml@^2.8.2",
       "jsr:@rebeccastevens/deepmerge@^7.1.5",
-      "npm:zod@^4.1.13"
+      "npm:zod@^4.2.1"
     ]
   }
 }
