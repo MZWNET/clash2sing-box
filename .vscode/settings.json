@@ -14,5 +14,6 @@
   },
   "[yaml]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
-  }
+  },
+  "typescript.native-preview.tsdk": "/Users/mzwing/repos/MZWNET/clash2sing-box/node_modules/@typescript/native-preview"
 }

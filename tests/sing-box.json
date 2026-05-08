@@ -1,0 +1,42 @@
+{
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "proxy",
+      "outbounds": [
+        "urltest-proxy",
+        "test-ss",
+        "test-vmess"
+      ],
+      "default": "urltest-proxy"
+    },
+    {
+      "type": "urltest",
+      "tag": "urltest-proxy",
+      "outbounds": [
+        "test-ss",
+        "test-vmess"
+      ]
+    },
+    {
+      "tag": "test-ss",
+      "server": "1.2.3.4",
+      "server_port": 8388,
+      "type": "shadowsocks",
+      "method": "aes-256-gcm",
+      "password": "testpassword"
+    },
+    {
+      "tag": "test-vmess",
+      "server": "1.2.3.4",
+      "server_port": 443,
+      "tls": {
+        "enabled": true
+      },
+      "type": "vmess",
+      "uuid": "b831381d-678a-4521-a398-a97113b03679",
+      "security": "auto",
+      "alter_id": 0
+    }
+  ]
+}

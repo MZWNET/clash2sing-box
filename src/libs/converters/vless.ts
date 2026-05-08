@@ -1,34 +1,34 @@
-import { z } from "zod";
-import { ClashProxyVLESS, SingboxOutboundVLESS } from "../types.ts";
+import { z } from 'zod'
+import { ClashProxyVLESS, SingboxOutboundVLESS } from '../types.ts'
 import {
   doConvertTLSTransport,
   doConvertVmessOrVLESSTransport,
-} from "./shared.ts";
+} from './shared.ts'
 
-export const convertVLESS = z.function({
+const convertVLESS = z.function({
   input: [ClashProxyVLESS],
   output: SingboxOutboundVLESS,
-});
+})
 export const doConvertVLESS = convertVLESS.implement((proxy) => {
-  const outbound: SingboxOutboundVLESS = {
-    type: "vless",
+  const outbound: z.infer<typeof SingboxOutboundVLESS> = {
+    type: 'vless',
     tag: proxy.name,
     server: proxy.server,
     server_port: proxy.port,
     uuid: proxy.uuid,
-  };
+  }
 
-  const transport = doConvertVmessOrVLESSTransport(proxy);
+  const transport = doConvertVmessOrVLESSTransport(proxy)
   if (transport) {
-    outbound.transport = transport;
+    outbound.transport = transport
   }
 
   if (proxy.flow !== undefined) {
-    outbound.flow = proxy.flow;
+    outbound.flow = proxy.flow
   }
   if (proxy.tls !== undefined) {
-    outbound.tls = doConvertTLSTransport(proxy);
+    outbound.tls = doConvertTLSTransport(proxy)
   }
 
-  return outbound;
-});
+  return outbound
+})
