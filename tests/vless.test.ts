@@ -1,8 +1,9 @@
 import type { z } from 'zod'
-import type { ClashProxyVLESS } from '../src/libs/types.ts'
+import type { ClashProxyVLESS as ClashProxyVLESSType } from '../src/libs/types.ts'
 import { doConvertVLESS } from '../src/libs/converters/vless.ts'
+import { ClashProxyVLESS } from '../src/libs/types.ts'
 
-type VLESSProxy = z.infer<typeof ClashProxyVLESS>
+type VLESSProxy = z.infer<typeof ClashProxyVLESSType>
 
 function makeVLESSProxy(overrides: Partial<VLESSProxy> = {}): VLESSProxy {
   return {
@@ -115,5 +116,85 @@ describe('doConvertVLESS', () => {
       path: '/ws',
       headers: { Host: 'full.example.com' },
     })
+  })
+})
+
+describe('clashProxyVLESS schema', () => {
+  it('parses vless with security tls and ws-opts', () => {
+    const result = ClashProxyVLESS.safeParse({
+      'type': 'vless',
+      'name': 'vless-ws-tls',
+      'server': '10.0.0.1',
+      'port': 443,
+      'uuid': '11111111-2222-3333-4444-555555555555',
+      'security': 'tls',
+      'tls': true,
+      'servername': 'ws.example.com',
+      'network': 'ws',
+      'client-fingerprint': 'chrome',
+      'ws-opts': {
+        path: '/ws',
+        headers: { Host: 'ws.example.com' },
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('parses vless with security reality and reality-opts', () => {
+    const result = ClashProxyVLESS.safeParse({
+      'type': 'vless',
+      'name': 'vless-reality',
+      'server': '10.0.0.2',
+      'port': 443,
+      'uuid': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      'security': 'reality',
+      'tls': true,
+      'servername': 'target.example.com',
+      'network': 'tcp',
+      'flow': 'xtls-rprx-vision',
+      'client-fingerprint': 'qq',
+      'reality-opts': {
+        'public-key': 'abc123',
+        'short-id': 'abcd',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('parses vless with network tcp and optional fields', () => {
+    const result = ClashProxyVLESS.safeParse({
+      'type': 'vless',
+      'name': 'vless-tcp',
+      'server': '10.0.0.3',
+      'port': 8443,
+      'uuid': '12345678-1234-1234-1234-123456789abc',
+      'security': 'tls',
+      'tls': true,
+      'network': 'tcp',
+      'udp': true,
+      'skip-cert-verify': true,
+      'alpn': ['h2', 'http/1.1'],
+      'encryption': 'none',
+      'client-fingerprint': 'chrome',
+      'tfo': true,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('parses vless with ech-opts without failing', () => {
+    const result = ClashProxyVLESS.safeParse({
+      'type': 'vless',
+      'name': 'vless-ech',
+      'server': '10.0.0.4',
+      'port': 443,
+      'uuid': 'aaaaaaaa-bbbb-cccc-dddd-111111111111',
+      'tls': true,
+      'ech-opts': {
+        'enable': true,
+        'config': 'abc',
+        'query-server-name': 'example.com',
+      },
+    })
+    expect(result.success).toBe(true)
   })
 })

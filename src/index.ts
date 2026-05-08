@@ -57,9 +57,11 @@ export async function convertAction(
   }
 }
 
-void new Command()
+const program = new Command()
   .name('clash2sing-box')
   .description('Clash to sing-box configuration converter')
+
+program
   .command('convert')
   .argument('<input...>', 'Input files')
   .option('-o, --output <string>', 'Output file path')
@@ -96,4 +98,5 @@ void new Command()
     }
     void convertAction(opts, ...input)
   })
-  .parse(process.argv)
+
+program.parse(process.argv)

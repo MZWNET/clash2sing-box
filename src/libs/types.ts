@@ -26,7 +26,7 @@ export const ClashProxyBaseTLS = ClashProxy.extend({
 })
 export const ClashProxyBaseVmessOrVLESS = ClashProxyBaseTLS.extend({
   'uuid': z.string(),
-  'network': z.optional(z.enum(['ws', 'h2', 'http', 'grpc'])),
+  'network': z.optional(z.enum(['ws', 'h2', 'http', 'grpc', 'tcp'])),
   'ws-opts': z.optional(z.object({
     'path': z.optional(z.string()),
     'headers': z.optional(z.record(z.string(), z.string())),
@@ -166,9 +166,30 @@ export const ClashProxyVmess = ClashProxyBaseVmessOrVLESS.extend({
   cipher: z.enum(['aes-128-gcm', 'chacha20-poly1305', 'auto', 'none', 'zero']),
 })
 export const ClashProxyVLESS = ClashProxyBaseVmessOrVLESS.extend({
-  type: z.literal('vless'),
-  flow: z.optional(z.enum(['xtls-rprx-vision'])),
-})
+  'type': z.literal('vless'),
+  'flow': z.optional(z.string()),
+  'security': z.optional(z.enum(['tls', 'reality', 'none'])),
+  'encryption': z.optional(z.string()),
+  'client-fingerprint': z.optional(z.string()),
+  'skip-cert-verify': z.optional(z.boolean()),
+  'udp': z.optional(z.boolean()),
+  'tfo': z.optional(z.boolean()),
+  'mptcp': z.optional(z.boolean()),
+  'interface-name': z.optional(z.string()),
+  'routing-mark': z.optional(z.number()),
+  'fingerprint': z.optional(z.string()),
+  'reality-opts': z.optional(z.object({
+    'public-key': z.string(),
+    'short-id': z.string(),
+    'spider-x': z.optional(z.string()),
+  })),
+  'ech-opts': z.optional(z.object({
+    'enable': z.boolean(),
+    'config': z.optional(z.string()),
+    'query-server-name': z.optional(z.string()),
+  })),
+  'client-version': z.optional(z.string()),
+}).passthrough()
 export const ClashProxies = z.discriminatedUnion('type', [
   ClashProxyAnyTls,
   ClashProxyHttp,
@@ -398,7 +419,7 @@ export const SingboxOutboundVmess = SingboxOutboundBaseTLS.extend({
 export const SingboxOutboundVLESS = SingboxOutboundBaseTLS.extend({
   type: z.literal('vless'),
   uuid: z.string(),
-  flow: z.optional(z.enum(['xtls-rprx-vision'])),
+  flow: z.optional(z.string()),
   transport: z.optional(SingboxOutboundCommonVmessOrVLESSTransport),
 })
 export const SingboxOutbounds = z.discriminatedUnion('type', [
