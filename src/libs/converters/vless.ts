@@ -24,7 +24,15 @@ export const doConvertVLESS = convertVLESS.implement((proxy) => {
   }
 
   if (proxy.flow !== undefined) {
-    outbound.flow = proxy.flow
+    if (proxy.flow !== 'xtls-rprx-vision') {
+      console.warn(
+        `Normalizing non-standard VLESS flow "${proxy.flow}" to "xtls-rprx-vision"`,
+      )
+      outbound.flow = 'xtls-rprx-vision'
+    }
+    else {
+      outbound.flow = proxy.flow
+    }
   }
   if (proxy.tls !== undefined) {
     outbound.tls = doConvertTLSTransport(proxy)
