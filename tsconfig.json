@@ -2,18 +2,8 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": [
-      "vitest/globals"
-    ]
+    "types": ["vitest/globals"]
   },
-  "include": [
-    "tests/**/*.ts",
-    "src/**/*.ts",
-    "eslint.config.ts",
-    "vitest.config.ts"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules"
-  ]
+  "include": ["tests/**/*.ts", "src/**/*.ts", "eslint.config.ts", "vitest.config.ts"],
+  "exclude": ["dist", "node_modules"]
 }

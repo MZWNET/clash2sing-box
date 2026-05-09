@@ -3,20 +3,13 @@
     {
       "type": "selector",
       "tag": "proxy",
-      "outbounds": [
-        "urltest-proxy",
-        "test-ss",
-        "test-vmess"
-      ],
+      "outbounds": ["urltest-proxy", "test-ss", "test-vmess"],
       "default": "urltest-proxy"
     },
     {
       "type": "urltest",
       "tag": "urltest-proxy",
-      "outbounds": [
-        "test-ss",
-        "test-vmess"
-      ]
+      "outbounds": ["test-ss", "test-vmess"]
     },
     {
       "tag": "test-ss",

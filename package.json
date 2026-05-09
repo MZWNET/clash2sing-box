@@ -1,15 +1,15 @@
 {
   "name": "@fei1yang/clash2sing-box",
-  "type": "module",
   "version": "0.1.7",
-  "author": "fei1yang",
-  "license": "MIT",
   "keywords": [
     "clash",
-    "sing-box",
     "converter",
-    "proxy"
+    "proxy",
+    "sing-box"
   ],
+  "license": "MIT",
+  "author": "fei1yang",
+  "type": "module",
   "exports": {
     ".": "./dist/index.cjs"
   },
@@ -19,13 +19,10 @@
     "build:watch": "pnpm run build --watch",
     "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
     "knip": "knip",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxfmt . && oxlint --type-aware . && eslint .",
+    "lint:fix": "oxfmt --write. && oxlint --type-aware --write . && eslint . --fix",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit"
-  },
-  "peerDependencies": {
-    "typescript": "^6.0.3"
   },
   "dependencies": {
     "commander": "^14.0.3",
@@ -41,9 +38,16 @@
     "esbuild": "^0.28.0",
     "eslint": "^10.3.0",
     "eslint-plugin-format": "^2.0.1",
+    "eslint-plugin-oxlint": "^1.63.0",
     "jiti": "^2.7.0",
     "knip": "^6.12.1",
     "make-coverage-badge": "^1.2.0",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "oxlint-tsgolint": "^0.22.1",
     "vitest": "^4.1.5"
+  },
+  "peerDependencies": {
+    "typescript": "^6.0.3"
   }
 }
