@@ -1,36 +1,36 @@
-import { z } from "zod";
-import { ClashProxyVLESS, SingboxOutboundVLESS } from "../types.ts";
-import { doConvertTLSTransport, doConvertVmessOrVLESSTransport } from "./shared.ts";
+import { z } from 'zod'
+import { ClashProxyVLESS, SingboxOutboundVLESS } from '../types.ts'
+import { doConvertTLSTransport, doConvertVmessOrVLESSTransport } from './shared.ts'
 
 const convertVLESS = z.function({
   input: [ClashProxyVLESS],
   output: SingboxOutboundVLESS,
-});
-export const doConvertVLESS = convertVLESS.implement((proxy) => {
+})
+export const doConvertVLESS = convertVLESS.implement(proxy => {
   const outbound: z.infer<typeof SingboxOutboundVLESS> = {
-    type: "vless",
+    type: 'vless',
     tag: proxy.name,
     server: proxy.server,
     server_port: proxy.port,
     uuid: proxy.uuid,
-  };
+  }
 
-  const transport = doConvertVmessOrVLESSTransport(proxy);
+  const transport = doConvertVmessOrVLESSTransport(proxy)
   if (transport) {
-    outbound.transport = transport;
+    outbound.transport = transport
   }
 
   if (proxy.flow !== undefined) {
-    if (proxy.flow !== "xtls-rprx-vision") {
-      console.warn(`Normalizing non-standard VLESS flow "${proxy.flow}" to "xtls-rprx-vision"`);
-      outbound.flow = "xtls-rprx-vision";
+    if (proxy.flow !== 'xtls-rprx-vision') {
+      console.warn(`Normalizing non-standard VLESS flow "${proxy.flow}" to "xtls-rprx-vision"`)
+      outbound.flow = 'xtls-rprx-vision'
     } else {
-      outbound.flow = proxy.flow;
+      outbound.flow = proxy.flow
     }
   }
   if (proxy.tls !== undefined) {
-    outbound.tls = doConvertTLSTransport(proxy);
+    outbound.tls = doConvertTLSTransport(proxy)
   }
 
-  return outbound;
-});
+  return outbound
+})

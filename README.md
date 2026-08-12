@@ -30,7 +30,7 @@
 ## Usage
 
 ```shell
-$ bun run src/mod.ts convert --help
+$ pnpm start convert --help
 Usage: clash2sing-box convert <input...>
 
 Description:
@@ -46,20 +46,30 @@ Options:
   --outbound.selector.tag        <string>   - The name(s) of the selector outbound(s)
 ```
 
-### Install Bun
+### Requirements
 
-- BSD/Linux/macOS: `curl -fsSL https://bun.sh/install | bash`
-- Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
+- [Node.js](https://nodejs.org/) >= 23.6
+- [pnpm](https://pnpm.io/) (activated via [corepack](https://nodejs.org/api/corepack.html))
+- [devenv](https://devenv.sh/) (optional, for a reproducible dev shell)
+
+### Setup
+
+```shell
+           # Activate pnpm via corepack (version pinned by the packageManager field)
+$ corepack enable
+           # Install dependencies
+$ pnpm install
+```
+
+With devenv (and direnv), the Node.js + corepack environment is provisioned automatically
+on entering the project directory — see [`devenv.nix`](./devenv.nix).
 
 ### Convert Configuration
 
 ```shell
-           # Install dependencies
-$ bun install
-           # Convert configuration file
-$ bun run src/mod.ts convert \
-           ./src/tests/clash.yaml \
-           -o ./src/tests/sing-box.json
-$ ls ./src/tests/
+$ pnpm start convert \
+           ./tests/clash.yaml \
+           -o ./tests/sing-box.json
+$ ls ./tests/
 clash.yaml  sing-box.json
 ```

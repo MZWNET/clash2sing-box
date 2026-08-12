@@ -1,9 +1,43 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "moduleDetection": "force",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "pretty": true,
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "resolveJsonModule": true,
+    "types": ["vitest/globals", "node"],
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "newLine": "lf",
+    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
   },
-  "include": ["tests/**/*.ts", "src/**/*.ts", "eslint.config.ts", "vitest.config.ts"],
-  "exclude": ["dist", "node_modules"]
+  "include": [
+    "tests/**/*.ts",
+    "src/**/*.ts",
+    "oxlint.config.ts",
+    "oxfmt.config.ts",
+    "tsdown.config.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": ["coverage", "dist", "node_modules"]
 }
