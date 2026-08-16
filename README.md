@@ -16,6 +16,7 @@ Convert [Clash](https://github.com/MetaCubeX/mihomo) configurations to [sing-box
 | `hysteria`  | O      | sing-box limitation: protocol `faketcp`/`wechat-video` not supported |
 | `hysteria2` | O      |                                                                      |
 | `openvpn`   | ?      | TLS mode only, as an `endpoints` entry; TAP devices unsupported      |
+| `reject`    | O      | Becomes a `block` outbound                                           |
 | `snell`     | ?      | Only version 4: sing-box implements 4 and 6, mihomo speaks 1-5       |
 | `socks5`    | O      | sing-box limitation: layer tls not supported                         |
 | `ss`        | O      | Including `plugin: shadow-tls` — see below                           |
@@ -27,8 +28,14 @@ Convert [Clash](https://github.com/MetaCubeX/mihomo) configurations to [sing-box
 | `vless`     | O      | sing-box limitation: protocol tcp not supported                      |
 | `wireguard` | O      | Emitted as an `endpoints` entry — see below                          |
 
-Not convertible, because sing-box has no counterpart: `ssr`, `mieru`, `sudoku`,
-`shadowquic`, `masque`, `trusttunnel`.
+That is every mihomo proxy type sing-box can express. The rest have no counterpart:
+`mieru`, `sudoku`, `shadowquic`, `masque`, `trusttunnel`, `gost-relay`, `zerotier`,
+`rematch`, plus two sing-box removed outright — `ssr` (removed in 1.6.0) and `dns`
+(removed in 1.13.0 in favour of route rule actions).
+
+`direct` and `reject` stay selectable but are kept out of the generated URLTest group:
+URLTest picks the lowest-latency member, and `direct` would always win the race while
+`block` would always lose it.
 
 A proxy that cannot be converted — an unknown protocol, an unsupported option, or a
 malformed entry — is skipped with a warning on stderr. The rest of the subscription is

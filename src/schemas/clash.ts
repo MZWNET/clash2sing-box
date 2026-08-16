@@ -304,6 +304,13 @@ export const ClashProxyWireGuard = z.object({
   ...ClashDialFields,
 })
 
+/** Rejects connections. Maps onto sing-box's `block` outbound, which takes no fields. */
+export const ClashProxyReject = z.object({
+  type: z.literal('reject'),
+  name: z.string(),
+  ...ClashDialFields,
+})
+
 /**
  * Tailscale. Like WireGuard this is an `endpoints` entry, not an outbound, and it has no
  * server address of its own — it dials the coordination server.

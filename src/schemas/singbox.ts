@@ -136,6 +136,15 @@ export const SingboxOutboundDirect = z.object({
   ...SingboxDialFields,
 })
 
+/**
+ * Rejects connections. Unlike the `dns` outbound — deprecated in 1.11.0, removed in
+ * 1.13.0 and gone from the registry — `block` is still registered, and takes no fields.
+ */
+export const SingboxOutboundBlock = z.object({
+  type: z.literal('block'),
+  tag: z.string(),
+})
+
 export const SingboxOutboundHttp = SingboxOutboundBaseTLS.extend({
   type: z.literal('http'),
   username: z.string().optional(),
@@ -315,6 +324,7 @@ export const SingboxOutboundVLESS = SingboxOutboundBaseTLS.extend({
 
 export const SingboxOutbounds = z.discriminatedUnion('type', [
   SingboxOutboundAnyTls,
+  SingboxOutboundBlock,
   SingboxOutboundDirect,
   SingboxOutboundHttp,
   SingboxOutboundHysteria,

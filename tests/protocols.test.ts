@@ -2,6 +2,7 @@ import {
   convert,
   DirectPipeline,
   OpenVPNPipeline,
+  RejectPipeline,
   ShadowsocksPipeline,
   SnellPipeline,
   TailscalePipeline,
@@ -338,5 +339,40 @@ describe('openvpn pipeline', () => {
 
     expect(result.success).toBe(false)
     expect(result.error?.issues[0]?.message).toContain('OpenVPN device "tap"')
+  })
+})
+
+describe('reject pipeline', () => {
+  it('converts to a block outbound, which takes no fields', () => {
+    // Dial options are accepted for leniency but deliberately not carried over.
+    const result = RejectPipeline.parse({ type: 'reject', name: 'blocked', 'interface-name': 'en0' })
+
+    expect(result).toEqual({ type: 'block', tag: 'blocked' })
+  })
+})
+
+describe('urltest membership', () => {
+  const proxies = [
+    { name: 'real-ss', type: 'ss', server: '1.2.3.4', port: 8388, cipher: 'aes-256-gcm', password: 'p' },
+    { name: 'direct-out', type: 'direct' },
+    { name: 'blocked', type: 'reject' },
+  ]
+
+  it('keeps direct and block selectable but out of the latency race', () => {
+    const { config } = convert({ proxies })
+
+    const selector = config.outbounds!.find(entry => entry.type === 'selector')!
+    const urltest = config.outbounds!.find(entry => entry.type === 'urltest')!
+
+    expect(selector.outbounds).toEqual(['urltest-proxy', 'real-ss', 'direct-out', 'blocked'])
+    // direct always wins a latency race and block always loses it, so neither belongs here.
+    expect(urltest.outbounds).toEqual(['real-ss'])
+  })
+
+  it('falls back to every outbound rather than emitting an empty URLTest group', () => {
+    const { config } = convert({ proxies: [{ name: 'direct-out', type: 'direct' }] })
+
+    const urltest = config.outbounds!.find(entry => entry.type === 'urltest')!
+    expect(urltest.outbounds).toEqual(['direct-out'])
   })
 })

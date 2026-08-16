@@ -21,6 +21,11 @@ export function asOutbound(outbound: SingboxAnyOutbound): ConvertedProxy {
   return { tag: outbound.tag, outbounds: [outbound], endpoints: [] }
 }
 
+/** The type of the outbound or endpoint that `tag` refers to. */
+export function primaryType(proxy: ConvertedProxy): string | undefined {
+  return proxy.outbounds[0]?.type ?? proxy.endpoints[0]?.type
+}
+
 export function asEndpoint(endpoint: SingboxAnyEndpoint): ConvertedProxy {
   return { tag: endpoint.tag, outbounds: [], endpoints: [endpoint] }
 }

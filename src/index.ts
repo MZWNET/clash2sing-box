@@ -1,5 +1,5 @@
 export type { ConvertedProxy } from './converters/envelope.ts'
-export { asChain, asEndpoint, asOutbound } from './converters/envelope.ts'
+export { asChain, asEndpoint, asOutbound, primaryType } from './converters/envelope.ts'
 export {
   AnyTlsPipeline,
   DirectPipeline,
@@ -8,6 +8,7 @@ export {
   HysteriaPipeline,
   OpenVPNPipeline,
   ProxyToOutbound,
+  RejectPipeline,
   ShadowsocksPipeline,
   SnellPipeline,
   Socks5Pipeline,

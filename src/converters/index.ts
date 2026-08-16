@@ -8,6 +8,7 @@ import { HttpPipeline } from './http.ts'
 import { HysteriaPipeline } from './hysteria.ts'
 import { Hysteria2Pipeline } from './hysteria2.ts'
 import { OpenVPNPipeline } from './openvpn.ts'
+import { RejectPipeline } from './reject.ts'
 import { ShadowsocksPipeline } from './shadowsocks.ts'
 import { SnellPipeline } from './snell.ts'
 import { Socks5Pipeline } from './socks.ts'
@@ -42,6 +43,7 @@ function shadowsocksEnvelope(result: {
 export const ProxyToOutbound = z.discriminatedUnion('type', [
   AnyTlsPipeline.transform(asOutbound),
   DirectPipeline.transform(asOutbound),
+  RejectPipeline.transform(asOutbound),
   HttpPipeline.transform(asOutbound),
   HysteriaPipeline.transform(asOutbound),
   Hysteria2Pipeline.transform(asOutbound),
@@ -72,6 +74,7 @@ export {
   TUICPipeline,
   VLESSPipeline,
   OpenVPNPipeline,
+  RejectPipeline,
   TailscalePipeline,
   VmessPipeline,
   WireGuardPipeline,

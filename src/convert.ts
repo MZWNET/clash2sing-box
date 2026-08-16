@@ -7,6 +7,7 @@ import type {
   SingboxOutboundURLTest,
 } from './schemas/singbox.ts'
 import type { z } from 'zod'
+import { primaryType } from './converters/envelope.ts'
 import { ProxyToOutbound } from './converters/index.ts'
 import { VLESS_FLOW } from './converters/vless.ts'
 import { merge, omitUndefined } from './object.ts'
@@ -29,12 +30,20 @@ const IP_VERSION_STRATEGY = {
   'ipv6-prefer': 'prefer_ipv6',
 } as const
 
+/**
+ * URLTest picks the lowest-latency member, so including these would defeat it: `direct`
+ * always wins the race, and `block` always fails it. They stay selectable by hand.
+ */
+const NOT_LATENCY_TESTABLE = new Set(['direct', 'block'])
+
 export function convert(clashInput: unknown, singboxInput: unknown = {}, options: Options = {}): ConvertResult {
   const warnings: string[] = []
   const allOutbounds: SingboxAnyOutbound[] = []
   const allEndpoints: SingboxAnyEndpoint[] = []
   /** Only these are offered in proxy groups — auxiliary outbounds are plumbing. */
   const selectableTags: string[] = []
+  /** The subset of the above worth racing in URLTest. */
+  const testableTags: string[] = []
 
   // 1. Convert Clash proxies, skipping (never aborting on) anything unusable.
   const clash = Clash.safeParse(clashInput)
@@ -61,6 +70,9 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     allOutbounds.push(...envelope.outbounds)
     allEndpoints.push(...envelope.endpoints)
     selectableTags.push(envelope.tag)
+    if (!NOT_LATENCY_TESTABLE.has(primaryType(envelope) ?? '')) {
+      testableTags.push(envelope.tag)
+    }
   }
 
   // 2. Carry over outbounds and endpoints supplied by the sing-box input.
@@ -79,6 +91,9 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     const outbound = entry as SingboxAnyOutbound
     allOutbounds.push(outbound)
     selectableTags.push(outbound.tag)
+    if (!NOT_LATENCY_TESTABLE.has(outbound.type)) {
+      testableTags.push(outbound.tag)
+    }
   }
 
   for (const [index, entry] of providedEndpoints.entries()) {
@@ -89,13 +104,15 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     const endpoint = entry as SingboxAnyEndpoint
     allEndpoints.push(endpoint)
     selectableTags.push(endpoint.tag)
+    testableTags.push(endpoint.tag)
   }
 
   // 3. Build the group outbounds.
   const urltest: z.infer<typeof SingboxOutboundURLTest> = {
     type: 'urltest',
     tag: 'urltest-proxy',
-    outbounds: selectableTags,
+    // Falling back keeps a direct-only config from producing an empty URLTest group.
+    outbounds: testableTags.length > 0 ? testableTags : selectableTags,
   }
 
   const selectorTemplate: z.infer<typeof SingboxOutboundSelector> = {
