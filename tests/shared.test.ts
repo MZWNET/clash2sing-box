@@ -1,6 +1,6 @@
-import type { ClashProxyBaseTLS, ClashProxyBaseVmessOrVLESS } from '../src/libs/types.ts'
+import type { ClashProxyBaseTLS, ClashProxyBaseVmessOrVLESS } from '../src/index.ts'
 import type { z } from 'zod'
-import { doConvertTLSTransport, doConvertVmessOrVLESSTransport } from '../src/libs/converters/shared.ts'
+import { convertTLSTransport, convertTransport } from '../src/converters/shared.ts'
 
 type TLSProxy = z.infer<typeof ClashProxyBaseTLS>
 type VmessOrVLESSProxy = z.infer<typeof ClashProxyBaseVmessOrVLESS>
@@ -24,29 +24,29 @@ function makeVmessOrVLESSProxy(overrides: Partial<VmessOrVLESSProxy> = {}): Vmes
   }
 }
 
-describe('doConvertTLSTransport', () => {
+describe('convertTLSTransport', () => {
   it('returns { enabled: true } with minimal input', () => {
-    const result = doConvertTLSTransport(makeTLSProxy())
+    const result = convertTLSTransport(makeTLSProxy())
     expect(result).toEqual({ enabled: true })
   })
 
   it('maps alpn array correctly', () => {
-    const result = doConvertTLSTransport(makeTLSProxy({ alpn: ['h2', 'http/1.1'] }))
+    const result = convertTLSTransport(makeTLSProxy({ alpn: ['h2', 'http/1.1'] }))
     expect(result).toEqual({ enabled: true, alpn: ['h2', 'http/1.1'] })
   })
 
   it('maps servername to server_name', () => {
-    const result = doConvertTLSTransport(makeTLSProxy({ servername: 'custom.example.com' }))
+    const result = convertTLSTransport(makeTLSProxy({ servername: 'custom.example.com' }))
     expect(result).toEqual({ enabled: true, server_name: 'custom.example.com' })
   })
 
   it('maps sni to server_name', () => {
-    const result = doConvertTLSTransport(makeTLSProxy({ sni: 'sni.example.com' }))
+    const result = convertTLSTransport(makeTLSProxy({ sni: 'sni.example.com' }))
     expect(result).toEqual({ enabled: true, server_name: 'sni.example.com' })
   })
 
   it('sni overrides servername when both present', () => {
-    const result = doConvertTLSTransport(
+    const result = convertTLSTransport(
       makeTLSProxy({
         servername: 'servername.example.com',
         sni: 'sni.example.com',
@@ -56,25 +56,25 @@ describe('doConvertTLSTransport', () => {
   })
 
   it('maps skip-cert-verify: true to insecure: true', () => {
-    const result = doConvertTLSTransport(makeTLSProxy({ 'skip-cert-verify': true }))
+    const result = convertTLSTransport(makeTLSProxy({ 'skip-cert-verify': true }))
     expect(result).toEqual({ enabled: true, insecure: true })
   })
 
   it('does not set insecure when skip-cert-verify is false', () => {
-    const result = doConvertTLSTransport(makeTLSProxy({ 'skip-cert-verify': false }))
+    const result = convertTLSTransport(makeTLSProxy({ 'skip-cert-verify': false }))
     expect(result).toEqual({ enabled: true })
     expect(result.insecure).toBeUndefined()
   })
 
   it('maps x-clash2singbox-certificate to certificate array', () => {
     const certs = ['-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----']
-    const result = doConvertTLSTransport(makeTLSProxy({ 'x-clash2singbox-certificate': certs }))
+    const result = convertTLSTransport(makeTLSProxy({ 'x-clash2singbox-certificate': certs }))
     expect(result).toEqual({ enabled: true, certificate: certs })
   })
 
   it('maps x-clash2singbox-certificate-public-key-sha256 correctly', () => {
     const sha256 = 'sha256:abcdef1234567890'
-    const result = doConvertTLSTransport(
+    const result = convertTLSTransport(
       makeTLSProxy({
         'x-clash2singbox-certificate-public-key-sha256': sha256,
       }),
@@ -87,7 +87,7 @@ describe('doConvertTLSTransport', () => {
 
   it('handles all fields together (full proxy)', () => {
     const certs = ['cert1', 'cert2']
-    const result = doConvertTLSTransport(
+    const result = convertTLSTransport(
       makeTLSProxy({
         alpn: ['h2'],
         sni: 'full.example.com',
@@ -107,14 +107,14 @@ describe('doConvertTLSTransport', () => {
   })
 })
 
-describe('doConvertVmessOrVLESSTransport', () => {
+describe('convertTransport', () => {
   it('returns undefined when no transport options present', () => {
-    const result = doConvertVmessOrVLESSTransport(makeVmessOrVLESSProxy())
+    const result = convertTransport(makeVmessOrVLESSProxy())
     expect(result).toBeUndefined()
   })
 
   it('converts http-opts to { type: "http" } with path, method, headers', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'http-opts': {
           path: ['/path1', '/path2'],
@@ -138,7 +138,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts http-opts with missing optional fields', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'http-opts': {},
       }),
@@ -147,7 +147,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts h2-opts to { type: "http" } with host and path', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'h2-opts': {
           host: ['h2.example.com'],
@@ -163,7 +163,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts h2-opts with missing optional fields', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'h2-opts': {},
       }),
@@ -172,7 +172,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts ws-opts to { type: "ws" } with path, headers, max_early_data, early_data_header_name', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'ws-opts': {
           path: '/wspath',
@@ -192,7 +192,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts ws-opts with missing optional fields', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'ws-opts': {},
       }),
@@ -201,7 +201,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts ws-opts with v2ray-http-upgrade: true to { type: "httpupgrade" }', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'ws-opts': {
           path: '/upgrade',
@@ -218,7 +218,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts ws-opts httpupgrade with missing optional fields', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'ws-opts': {
           'v2ray-http-upgrade': true,
@@ -229,7 +229,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts grpc-opts to { type: "grpc" } with service_name', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'grpc-opts': {
           'grpc-service-name': 'my.grpc.service',
@@ -243,7 +243,7 @@ describe('doConvertVmessOrVLESSTransport', () => {
   })
 
   it('converts grpc-opts with missing optional service_name', () => {
-    const result = doConvertVmessOrVLESSTransport(
+    const result = convertTransport(
       makeVmessOrVLESSProxy({
         'grpc-opts': {},
       }),

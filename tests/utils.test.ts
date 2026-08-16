@@ -1,7 +1,8 @@
-import type { Options, SingboxConfig } from '../src/libs/utils.ts'
+import type { Options, SingboxConfig } from '../src/index.ts'
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import * as yaml from 'yaml'
-import { convert, merge } from '../src/libs/utils.ts'
+import { convert, merge } from '../src/index.ts'
 import {
   fullAnyTlsProxy,
   fullHttpProxy,
@@ -69,7 +70,7 @@ describe('convert()', () => {
     singboxInput: Record<string, unknown> = {},
     options: Options = {},
   ): SingboxConfig {
-    return JSON.parse(convert(clashInput, singboxInput, options)) as SingboxConfig
+    return convert(clashInput, singboxInput, options).config
   }
 
   type OutboundElement = NonNullable<SingboxConfig['outbounds']>[number]
@@ -306,16 +307,17 @@ describe('convert()', () => {
     expect(result.outbounds!.length).toBe(3)
   })
 
-  it('output is valid JSON string (JSON.parse succeeds)', () => {
+  it('returns a config that serializes to JSON', () => {
     const clash = { proxies: [minimalShadowsocksProxy] }
-    const raw = convert(clash, {}, {})
-    expect(typeof raw).toBe('string')
-    expect(() => JSON.parse(raw) as SingboxConfig).not.toThrow()
+    const { config, warnings } = convert(clash, {}, {})
+    expect(warnings).toEqual([])
+    expect(() => JSON.stringify(config)).not.toThrow()
+    expect(JSON.parse(JSON.stringify(config)) as SingboxConfig).toEqual(config)
   })
 
   it('should match existing test fixture (tests/clash.yaml → tests/sing-box.json)', () => {
-    const clash = yaml.parse(readFileSync('tests/clash.yaml', 'utf-8')) as Record<string, unknown>
-    const expected = JSON.parse(readFileSync('tests/sing-box.json', 'utf-8')) as SingboxConfig
+    const clash = yaml.parse(readFileSync(join(import.meta.dirname, 'clash.yaml'), 'utf-8')) as Record<string, unknown>
+    const expected = JSON.parse(readFileSync(join(import.meta.dirname, 'sing-box.json'), 'utf-8')) as SingboxConfig
     const result = parseConvert(clash)
     expect(result).toEqual(expected)
   })
@@ -502,10 +504,16 @@ describe('convert()', () => {
     expect(proxyOut!['server_port']).toBe(1080)
   })
 
-  it('converts full socks5 proxy with optional fields', () => {
-    const clash = { proxies: [fullSocks5Proxy] }
-    // socks5 with tls: true throws "Unsupported layer tls"
-    expect(() => convert(clash, {}, {})).toThrow('Unsupported layer tls')
+  it('skips a socks5 proxy carrying tls instead of aborting the whole conversion', () => {
+    const clash = { proxies: [fullSocks5Proxy, minimalShadowsocksProxy] }
+    const { config, warnings } = convert(clash, {}, {})
+
+    const tags = config.outbounds!.map(outbound => outbound.tag)
+    expect(tags).not.toContain('socks5-02')
+    // The rest of the subscription still converts.
+    expect(tags).toContain('ss-01')
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('sing-box does not support a TLS layer on SOCKS')
   })
 
   it('converts minimal ssh proxy', () => {
@@ -652,5 +660,71 @@ describe('convert()', () => {
     expect(tags).toContain('tuic-01')
     expect(tags).toContain('vmess-01')
     expect(tags).toContain('vless-01')
+  })
+})
+
+describe('convert() resilience', () => {
+  const goodProxy = {
+    name: 'good-ss',
+    type: 'ss',
+    server: '1.2.3.4',
+    port: 8388,
+    cipher: 'aes-256-gcm',
+    password: 'pw',
+  }
+
+  function tagsOf(config: SingboxConfig): string[] {
+    return config.outbounds!.map(outbound => outbound.tag)
+  }
+
+  it('keeps converting after a proxy that is missing required fields', () => {
+    // Previously the whole `proxies` array failed to parse, silently dropping every proxy.
+    const { config, warnings } = convert({ proxies: [{ name: 'broken', type: 'ss', server: 'x' }, goodProxy] })
+
+    expect(tagsOf(config)).toContain('good-ss')
+    expect(warnings).toHaveLength(1)
+    // Named proxy plus the offending field, rather than a bare index.
+    expect(warnings[0]).toContain('Skipping proxy "broken" (type: ss)')
+    expect(warnings[0]).toContain('port')
+  })
+
+  it('falls back to the index when a proxy cannot even be identified', () => {
+    const { config, warnings } = convert({ proxies: [{ server: 'x', port: 1 }, goodProxy] })
+
+    expect(tagsOf(config)).toContain('good-ss')
+    expect(warnings[0]).toContain('index 0')
+  })
+
+  it('skips an unknown proxy type but keeps the rest', () => {
+    const { config, warnings } = convert({
+      proxies: [{ name: 'weird', type: 'not-a-protocol', server: '1.2.3.4', port: 1 }, goodProxy],
+    })
+
+    expect(tagsOf(config)).toEqual(['proxy', 'urltest-proxy', 'good-ss'])
+    expect(warnings[0]).toContain('Skipping proxy "weird" (type: not-a-protocol)')
+  })
+
+  it('warns when a non-standard VLESS flow is normalized', () => {
+    const { warnings } = convert({
+      proxies: [
+        {
+          name: 'vless-flow',
+          type: 'vless',
+          server: '1.2.3.4',
+          port: 443,
+          uuid: 'aaaaaaaa-bbbb-cccc-dddd-111111111111',
+          flow: 'xtls-rprx-direct',
+        },
+      ],
+    })
+
+    expect(warnings).toEqual(['Normalized VLESS flow "xtls-rprx-direct" to "xtls-rprx-vision" for proxy "vless-flow"'])
+  })
+
+  it('returns an empty outbound list rather than throwing on a config with no proxies', () => {
+    const { config, warnings } = convert({})
+
+    expect(tagsOf(config)).toEqual(['proxy', 'urltest-proxy'])
+    expect(warnings).toEqual([])
   })
 })

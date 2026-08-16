@@ -1,6 +1,6 @@
-import { doConvertHttp } from '../src/libs/converters/http.ts'
+import { HttpPipeline } from '../src/converters/http.ts'
 
-describe('doConvertHttp', () => {
+describe('http pipeline', () => {
   it('converts basic fields without auth', () => {
     const proxy = {
       name: 'test-http',
@@ -9,7 +9,7 @@ describe('doConvertHttp', () => {
       type: 'http' as const,
     }
 
-    const result = doConvertHttp(proxy)
+    const result = HttpPipeline.parse(proxy)
 
     expect(result.type).toBe('http')
     expect(result.tag).toBe('test-http')
@@ -30,7 +30,7 @@ describe('doConvertHttp', () => {
       password: 'secret',
     }
 
-    const result = doConvertHttp(proxy)
+    const result = HttpPipeline.parse(proxy)
 
     expect(result.username).toBe('admin')
     expect(result.password).toBe('secret')
@@ -45,7 +45,7 @@ describe('doConvertHttp', () => {
       username: 'admin',
     }
 
-    const result = doConvertHttp(proxy)
+    const result = HttpPipeline.parse(proxy)
 
     expect(result.username).toBe('admin')
     expect(result.password).toBeUndefined()
@@ -60,7 +60,7 @@ describe('doConvertHttp', () => {
       password: 'secret',
     }
 
-    const result = doConvertHttp(proxy)
+    const result = HttpPipeline.parse(proxy)
 
     expect(result.username).toBeUndefined()
     expect(result.password).toBeUndefined()
@@ -77,7 +77,7 @@ describe('doConvertHttp', () => {
       'skip-cert-verify': true,
     }
 
-    const result = doConvertHttp(proxy)
+    const result = HttpPipeline.parse(proxy)
 
     expect(result.tls).toEqual({
       enabled: true,
@@ -94,7 +94,7 @@ describe('doConvertHttp', () => {
       type: 'http' as const,
     }
 
-    const result = doConvertHttp(proxy)
+    const result = HttpPipeline.parse(proxy)
 
     expect(result.tls).toBeUndefined()
   })

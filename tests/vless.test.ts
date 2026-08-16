@@ -1,7 +1,7 @@
-import type { ClashProxyVLESS as ClashProxyVLESSType } from '../src/libs/types.ts'
+import type { ClashProxyVLESS as ClashProxyVLESSType } from '../src/index.ts'
 import type { z } from 'zod'
-import { doConvertVLESS } from '../src/libs/converters/vless.ts'
-import { ClashProxyVLESS } from '../src/libs/types.ts'
+import { VLESSPipeline } from '../src/converters/vless.ts'
+import { ClashProxyVLESS } from '../src/index.ts'
 
 type VLESSProxy = z.infer<typeof ClashProxyVLESSType>
 
@@ -16,9 +16,9 @@ function makeVLESSProxy(overrides: Partial<VLESSProxy> = {}): VLESSProxy {
   }
 }
 
-describe('doConvertVLESS', () => {
+describe('vless pipeline', () => {
   it('converts basic fields: name → tag, server, port, uuid', () => {
-    const result = doConvertVLESS(makeVLESSProxy())
+    const result = VLESSPipeline.parse(makeVLESSProxy())
     expect(result.type).toBe('vless')
     expect(result.tag).toBe('test-vless')
     expect(result.server).toBe('1.2.3.4')
@@ -27,7 +27,7 @@ describe('doConvertVLESS', () => {
   })
 
   it('converts TLS when tls: true is set', () => {
-    const result = doConvertVLESS(
+    const result = VLESSPipeline.parse(
       makeVLESSProxy({
         tls: true,
         sni: 'vless.example.com',
@@ -42,12 +42,12 @@ describe('doConvertVLESS', () => {
   })
 
   it('does not set tls when tls field is undefined', () => {
-    const result = doConvertVLESS(makeVLESSProxy())
+    const result = VLESSPipeline.parse(makeVLESSProxy())
     expect(result.tls).toBeUndefined()
   })
 
   it('converts ws-opts to transport with type: ws', () => {
-    const result = doConvertVLESS(
+    const result = VLESSPipeline.parse(
       makeVLESSProxy({
         'ws-opts': {
           path: '/vless-ws',
@@ -63,7 +63,7 @@ describe('doConvertVLESS', () => {
   })
 
   it('converts h2-opts to transport with type: http', () => {
-    const result = doConvertVLESS(
+    const result = VLESSPipeline.parse(
       makeVLESSProxy({
         'h2-opts': {
           host: ['h2.example.com'],
@@ -79,7 +79,7 @@ describe('doConvertVLESS', () => {
   })
 
   it('converts grpc-opts to transport with type: grpc', () => {
-    const result = doConvertVLESS(
+    const result = VLESSPipeline.parse(
       makeVLESSProxy({
         'grpc-opts': {
           'grpc-service-name': 'vless.grpc.service',
@@ -93,12 +93,12 @@ describe('doConvertVLESS', () => {
   })
 
   it('does not set transport when no opts present', () => {
-    const result = doConvertVLESS(makeVLESSProxy())
+    const result = VLESSPipeline.parse(makeVLESSProxy())
     expect(result.transport).toBeUndefined()
   })
 
   it('maps optional flow field', () => {
-    const result = doConvertVLESS(
+    const result = VLESSPipeline.parse(
       makeVLESSProxy({
         flow: 'xtls-rprx-vision',
       }),
@@ -107,7 +107,7 @@ describe('doConvertVLESS', () => {
   })
 
   it('converts with TLS and transport together', () => {
-    const result = doConvertVLESS(
+    const result = VLESSPipeline.parse(
       makeVLESSProxy({
         tls: true,
         sni: 'full.example.com',
@@ -208,5 +208,62 @@ describe('clashProxyVLESS schema', () => {
       },
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('vless pipeline REALITY/ECH', () => {
+  it('emits tls.reality from reality-opts', () => {
+    const result = VLESSPipeline.parse(
+      makeVLESSProxy({
+        tls: true,
+        sni: 'reality.example.com',
+        'reality-opts': { 'public-key': 'pubkey123', 'short-id': 'short456' },
+      }),
+    )
+
+    expect(result.tls?.reality).toEqual({
+      enabled: true,
+      public_key: 'pubkey123',
+      short_id: 'short456',
+    })
+    expect(result.tls?.server_name).toBe('reality.example.com')
+  })
+
+  it('emits tls even when reality is configured without an explicit tls: true', () => {
+    const result = VLESSPipeline.parse(
+      makeVLESSProxy({
+        security: 'reality',
+        'reality-opts': { 'public-key': 'pubkey123' },
+      }),
+    )
+
+    expect(result.tls?.enabled).toBe(true)
+    expect(result.tls?.reality?.public_key).toBe('pubkey123')
+  })
+
+  it('emits tls.ech from ech-opts', () => {
+    const result = VLESSPipeline.parse(
+      makeVLESSProxy({ tls: true, 'ech-opts': { enable: true, config: 'ech-config' } }),
+    )
+
+    expect(result.tls?.ech).toEqual({ enabled: true, config: 'ech-config' })
+  })
+
+  it('does not emit tls.ech when ech-opts is disabled', () => {
+    const result = VLESSPipeline.parse(makeVLESSProxy({ tls: true, 'ech-opts': { enable: false } }))
+
+    expect(result.tls?.ech).toBeUndefined()
+  })
+
+  it('emits tls.utls from client-fingerprint', () => {
+    const result = VLESSPipeline.parse(makeVLESSProxy({ tls: true, 'client-fingerprint': 'chrome' }))
+
+    expect(result.tls?.utls).toEqual({ enabled: true, fingerprint: 'chrome' })
+  })
+
+  it('does not emit a tls block when tls is explicitly false', () => {
+    const result = VLESSPipeline.parse(makeVLESSProxy({ tls: false }))
+
+    expect(result.tls).toBeUndefined()
   })
 })

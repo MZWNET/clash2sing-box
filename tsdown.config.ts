@@ -1,8 +1,10 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: 'src/index.ts',
+  entry: ['src/index.ts', 'src/cli.ts'],
   format: ['es'],
-  minify: true,
+  // Left unminified on purpose: this ships a CLI and a library, where readable stack
+  // traces are worth more than a few kilobytes.
+  minify: false,
   sourcemap: false,
 })

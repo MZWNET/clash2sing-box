@@ -1,6 +1,6 @@
-import type { ClashProxyTUIC } from '../src/libs/types.ts'
+import type { ClashProxyTUIC } from '../src/index.ts'
 import type { z } from 'zod'
-import { doConvertTUIC } from '../src/libs/converters/tuic.ts'
+import { TUICPipeline } from '../src/converters/tuic.ts'
 
 type TUICProxy = z.infer<typeof ClashProxyTUIC>
 
@@ -15,9 +15,9 @@ function makeTUICProxy(overrides: Partial<TUICProxy> = {}): TUICProxy {
   }
 }
 
-describe('doConvertTUIC', () => {
+describe('tuic pipeline', () => {
   it('converts basic fields: name → tag, server, port, uuid', () => {
-    const result = doConvertTUIC(makeTUICProxy())
+    const result = TUICPipeline.parse(makeTUICProxy())
     expect(result.type).toBe('tuic')
     expect(result.tag).toBe('test-tuic')
     expect(result.server).toBe('1.2.3.4')
@@ -26,12 +26,12 @@ describe('doConvertTUIC', () => {
   })
 
   it('always includes tls with enabled: true', () => {
-    const result = doConvertTUIC(makeTUICProxy())
+    const result = TUICPipeline.parse(makeTUICProxy())
     expect(result.tls).toEqual({ enabled: true })
   })
 
   it('converts TLS fields (sni, alpn, skip-cert-verify)', () => {
-    const result = doConvertTUIC(
+    const result = TUICPipeline.parse(
       makeTUICProxy({
         sni: 'tuic.example.com',
         alpn: ['h3'],
@@ -47,57 +47,57 @@ describe('doConvertTUIC', () => {
   })
 
   it('maps optional password field', () => {
-    const result = doConvertTUIC(makeTUICProxy({ password: 'my-secret' }))
+    const result = TUICPipeline.parse(makeTUICProxy({ password: 'my-secret' }))
     expect(result.password).toBe('my-secret')
   })
 
   it('omits password when not provided', () => {
-    const result = doConvertTUIC(makeTUICProxy())
+    const result = TUICPipeline.parse(makeTUICProxy())
     expect(result.password).toBeUndefined()
   })
 
   it('converts heartbeat-interval from milliseconds to seconds string', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'heartbeat-interval': 30000 }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'heartbeat-interval': 30000 }))
     expect(result.heartbeat).toBe('30s')
   })
 
   it('converts heartbeat-interval with non-round values', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'heartbeat-interval': 5000 }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'heartbeat-interval': 5000 }))
     expect(result.heartbeat).toBe('5s')
   })
 
   it('maps reduce-rtt: true to zero_rtt_handshake: true', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'reduce-rtt': true }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'reduce-rtt': true }))
     expect(result.zero_rtt_handshake).toBe(true)
   })
 
   it('does not set zero_rtt_handshake when reduce-rtt is false', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'reduce-rtt': false }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'reduce-rtt': false }))
     expect(result.zero_rtt_handshake).toBeUndefined()
   })
 
   it('maps udp-relay-mode to udp_relay_mode', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'udp-relay-mode': 'quic' }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'udp-relay-mode': 'quic' }))
     expect(result.udp_relay_mode).toBe('quic')
   })
 
   it('maps congestion-controller to congestion_control', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'congestion-controller': 'bbr' }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'congestion-controller': 'bbr' }))
     expect(result.congestion_control).toBe('bbr')
   })
 
   it('maps udp-over-stream: true to udp_over_stream: true', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'udp-over-stream': true }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'udp-over-stream': true }))
     expect(result.udp_over_stream).toBe(true)
   })
 
   it('does not set udp_over_stream when udp-over-stream is false', () => {
-    const result = doConvertTUIC(makeTUICProxy({ 'udp-over-stream': false }))
+    const result = TUICPipeline.parse(makeTUICProxy({ 'udp-over-stream': false }))
     expect(result.udp_over_stream).toBeUndefined()
   })
 
   it('converts all optional fields together', () => {
-    const result = doConvertTUIC(
+    const result = TUICPipeline.parse(
       makeTUICProxy({
         password: 'pass123',
         'heartbeat-interval': 10000,

@@ -1,6 +1,6 @@
-import type { ClashProxyTrojan } from '../src/libs/types.ts'
+import type { ClashProxyTrojan } from '../src/index.ts'
 import type { z } from 'zod'
-import { doConvertTrojan } from '../src/libs/converters/trojan.ts'
+import { TrojanPipeline } from '../src/converters/trojan.ts'
 
 type TrojanProxy = z.infer<typeof ClashProxyTrojan>
 
@@ -15,9 +15,9 @@ function makeTrojanProxy(overrides: Partial<TrojanProxy> = {}): TrojanProxy {
   }
 }
 
-describe('doConvertTrojan', () => {
+describe('trojan pipeline', () => {
   it('converts basic fields: password, name → tag', () => {
-    const result = doConvertTrojan(makeTrojanProxy())
+    const result = TrojanPipeline.parse(makeTrojanProxy())
     expect(result).toEqual({
       type: 'trojan',
       tag: 'test-trojan',
@@ -28,13 +28,13 @@ describe('doConvertTrojan', () => {
     })
   })
 
-  it('converts TLS via doConvertTLSTransport (enabled by default)', () => {
-    const result = doConvertTrojan(makeTrojanProxy())
+  it('converts TLS via convertTLSTransport (enabled by default)', () => {
+    const result = TrojanPipeline.parse(makeTrojanProxy())
     expect(result.tls).toEqual({ enabled: true })
   })
 
   it('maps sni to tls server_name', () => {
-    const result = doConvertTrojan(makeTrojanProxy({ sni: 'trojan.example.com' }))
+    const result = TrojanPipeline.parse(makeTrojanProxy({ sni: 'trojan.example.com' }))
     expect(result.tls).toEqual({
       enabled: true,
       server_name: 'trojan.example.com',
@@ -42,7 +42,7 @@ describe('doConvertTrojan', () => {
   })
 
   it('handles all TLS options: sni, alpn, skip-cert-verify', () => {
-    const result = doConvertTrojan(
+    const result = TrojanPipeline.parse(
       makeTrojanProxy({
         sni: 'full.example.com',
         alpn: ['h2', 'http/1.1'],

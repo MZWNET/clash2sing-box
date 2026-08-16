@@ -1,6 +1,6 @@
-import type { ClashProxyShadowsocks } from '../src/libs/types.ts'
+import type { ClashProxyShadowsocks } from '../src/index.ts'
 import type { z } from 'zod'
-import { doConvertShadowsocks } from '../src/libs/converters/shadowsocks.ts'
+import { ShadowsocksPipeline } from '../src/converters/shadowsocks.ts'
 
 type SSProxy = z.infer<typeof ClashProxyShadowsocks>
 
@@ -16,9 +16,9 @@ function makeSSProxy(overrides: Partial<SSProxy> = {}): SSProxy {
   }
 }
 
-describe('doConvertShadowsocks', () => {
+describe('shadowsocks pipeline', () => {
   it('converts basic fields: cipher → method, password, name → tag', () => {
-    const result = doConvertShadowsocks(makeSSProxy())
+    const result = ShadowsocksPipeline.parse(makeSSProxy()).outbound
     expect(result).toEqual({
       type: 'shadowsocks',
       tag: 'test-ss',
@@ -30,87 +30,87 @@ describe('doConvertShadowsocks', () => {
   })
 
   it('renames plugin "obfs" to "obfs-local"', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'obfs',
         'plugin-opts': { mode: 'http' },
       }),
-    )
+    ).outbound
     expect(result.plugin).toBe('obfs-local')
   })
 
   it('keeps plugin "v2ray-plugin" as-is', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'v2ray-plugin',
         'plugin-opts': { mode: 'websocket' },
       }),
-    )
+    ).outbound
     expect(result.plugin).toBe('v2ray-plugin')
   })
 
   it('plugin opts: mode only → "mode=http"', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'obfs',
         'plugin-opts': { mode: 'http' },
       }),
-    )
+    ).outbound
     expect(result.plugin_opts).toBe('mode=http')
   })
 
   it('plugin opts: mode + host → "mode=http;host=example.com"', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'obfs',
         'plugin-opts': { mode: 'http', host: 'example.com' },
       }),
-    )
+    ).outbound
     expect(result.plugin_opts).toBe('mode=http;host=example.com')
   })
 
   it('plugin opts: v2ray-plugin with tls=true → adds ";tls"', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'v2ray-plugin',
         'plugin-opts': { mode: 'websocket', tls: true },
       }),
-    )
+    ).outbound
     expect(result.plugin_opts).toBe('mode=websocket;tls')
   })
 
   it('plugin opts: v2ray-plugin with path → adds ";path=/ws"', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'v2ray-plugin',
         'plugin-opts': { mode: 'websocket', path: '/ws' },
       }),
-    )
+    ).outbound
     expect(result.plugin_opts).toBe('mode=websocket;path=/ws')
   })
 
   it('plugin opts: v2ray-plugin with mux → adds ";mux=true"', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         plugin: 'v2ray-plugin',
         'plugin-opts': { mode: 'websocket', mux: true },
       }),
-    )
+    ).outbound
     expect(result.plugin_opts).toBe('mode=websocket;mux=true')
   })
 
   it('udp-over-tcp: true → { enabled: true }', () => {
-    const result = doConvertShadowsocks(makeSSProxy({ 'udp-over-tcp': true }))
+    const result = ShadowsocksPipeline.parse(makeSSProxy({ 'udp-over-tcp': true })).outbound
     expect(result.udp_over_tcp).toEqual({ enabled: true })
   })
 
   it('udp-over-tcp with version → { enabled: true, version: 2 }', () => {
-    const result = doConvertShadowsocks(
+    const result = ShadowsocksPipeline.parse(
       makeSSProxy({
         'udp-over-tcp': true,
         'udp-over-tcp-version': 2,
       }),
-    )
+    ).outbound
     expect(result.udp_over_tcp).toEqual({ enabled: true, version: 2 })
   })
 })

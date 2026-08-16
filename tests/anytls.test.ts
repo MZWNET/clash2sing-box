@@ -1,6 +1,6 @@
-import { doConvertAnyTls } from '../src/libs/converters/anytls.ts'
+import { AnyTlsPipeline } from '../src/converters/anytls.ts'
 
-describe('doConvertAnyTls', () => {
+describe('anytls pipeline', () => {
   it('converts basic required fields', () => {
     const proxy = {
       name: 'test-anytls',
@@ -10,7 +10,7 @@ describe('doConvertAnyTls', () => {
       password: 'my-secret',
     }
 
-    const result = doConvertAnyTls(proxy)
+    const result = AnyTlsPipeline.parse(proxy)
 
     expect(result.type).toBe('anytls')
     expect(result.tag).toBe('test-anytls')
@@ -20,7 +20,7 @@ describe('doConvertAnyTls', () => {
     expect(result.tls).toEqual({ enabled: true })
   })
 
-  it('converts TLS via doConvertTLSTransport with sni and skip-cert-verify', () => {
+  it('converts TLS via convertTLSTransport with sni and skip-cert-verify', () => {
     const proxy = {
       name: 'test',
       server: '1.2.3.4',
@@ -32,7 +32,7 @@ describe('doConvertAnyTls', () => {
       alpn: ['h2', 'http/1.1'],
     }
 
-    const result = doConvertAnyTls(proxy)
+    const result = AnyTlsPipeline.parse(proxy)
 
     expect(result.tls).toEqual({
       enabled: true,
@@ -52,7 +52,7 @@ describe('doConvertAnyTls', () => {
       'idle-session-check-interval': 30,
     }
 
-    const result = doConvertAnyTls(proxy)
+    const result = AnyTlsPipeline.parse(proxy)
 
     expect(result.idle_session_check_interval).toBe('30s')
   })
@@ -67,7 +67,7 @@ describe('doConvertAnyTls', () => {
       'idle-session-timeout': 120,
     }
 
-    const result = doConvertAnyTls(proxy)
+    const result = AnyTlsPipeline.parse(proxy)
 
     expect(result.idle_session_timeout).toBe('120s')
   })
@@ -82,7 +82,7 @@ describe('doConvertAnyTls', () => {
       'min-idle-session': 5,
     }
 
-    const result = doConvertAnyTls(proxy)
+    const result = AnyTlsPipeline.parse(proxy)
 
     expect(result.min_idle_session).toBe(5)
   })

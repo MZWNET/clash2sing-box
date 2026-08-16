@@ -1,6 +1,6 @@
-import { doConvertHysteria2 } from '../src/libs/converters/hysteria2.ts'
+import { Hysteria2Pipeline } from '../src/converters/hysteria2.ts'
 
-describe('doConvertHysteria2', () => {
+describe('hysteria2 pipeline', () => {
   it('converts basic required fields', () => {
     const proxy = {
       name: 'test-hy2',
@@ -10,7 +10,7 @@ describe('doConvertHysteria2', () => {
       password: 'my-password',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.type).toBe('hysteria2')
     expect(result.tag).toBe('test-hy2')
@@ -32,7 +32,7 @@ describe('doConvertHysteria2', () => {
       down: '50 Mbps',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.up_mbps).toBe(100)
     expect(result.down_mbps).toBe(50)
@@ -47,7 +47,7 @@ describe('doConvertHysteria2', () => {
       password: 'pass',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.up_mbps).toBeUndefined()
     expect(result.down_mbps).toBeUndefined()
@@ -63,7 +63,7 @@ describe('doConvertHysteria2', () => {
       ports: '443,8443',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.server_ports).toEqual(['443', '8443'])
   })
@@ -78,7 +78,7 @@ describe('doConvertHysteria2', () => {
       ports: '443-8443',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.server_ports).toEqual(['443:8443'])
   })
@@ -93,7 +93,7 @@ describe('doConvertHysteria2', () => {
       ports: '443/8443',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.server_ports).toEqual(['443', '8443'])
   })
@@ -112,7 +112,7 @@ describe('doConvertHysteria2', () => {
       },
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.tls?.reality).toEqual({
       enabled: true,
@@ -134,7 +134,7 @@ describe('doConvertHysteria2', () => {
       },
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.tls?.ech).toEqual({
       enabled: true,
@@ -152,7 +152,7 @@ describe('doConvertHysteria2', () => {
       fingerprint: 'chrome',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.tls?.utls).toEqual({
       enabled: true,
@@ -170,7 +170,7 @@ describe('doConvertHysteria2', () => {
       'client-fingerprint': 'firefox',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.tls?.utls).toEqual({
       enabled: true,
@@ -189,7 +189,7 @@ describe('doConvertHysteria2', () => {
       'obfs-password': 'obfs-secret',
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.obfs).toEqual({
       type: 'salamander',
@@ -210,7 +210,7 @@ describe('doConvertHysteria2', () => {
       'routing-mark': 255,
     }
 
-    const result = doConvertHysteria2(proxy)
+    const result = Hysteria2Pipeline.parse(proxy)
 
     expect(result.tcp_fast_open).toBe(true)
     expect(result.tcp_multi_path).toBe(true)

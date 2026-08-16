@@ -1,6 +1,6 @@
-import { doConvertHysteria } from '../src/libs/converters/hysteria.ts'
+import { HysteriaPipeline } from '../src/converters/hysteria.ts'
 
-describe('doConvertHysteria', () => {
+describe('hysteria pipeline', () => {
   it('converts basic fields with protocol udp', () => {
     const proxy = {
       name: 'test-hy',
@@ -12,7 +12,7 @@ describe('doConvertHysteria', () => {
       down: '200 Mbps',
     }
 
-    const result = doConvertHysteria(proxy)
+    const result = HysteriaPipeline.parse(proxy)
 
     expect(result.type).toBe('hysteria')
     expect(result.tag).toBe('test-hy')
@@ -23,32 +23,21 @@ describe('doConvertHysteria', () => {
     expect(result.tls).toEqual({ enabled: true })
   })
 
-  it('throws error for protocol faketcp', () => {
+  it.each(['faketcp', 'wechat-video'] as const)('rejects unsupported protocol %s without throwing', protocol => {
     const proxy = {
       name: 'test',
       server: '1.2.3.4',
       port: 443,
       type: 'hysteria' as const,
-      protocol: 'faketcp' as const,
+      protocol,
       up: '100',
       down: '200',
     }
 
-    expect(() => doConvertHysteria(proxy)).toThrow('Unsupported protocol faketcp or wechat-video')
-  })
+    const result = HysteriaPipeline.safeParse(proxy)
 
-  it('throws error for protocol wechat-video', () => {
-    const proxy = {
-      name: 'test',
-      server: '1.2.3.4',
-      port: 443,
-      type: 'hysteria' as const,
-      protocol: 'wechat-video' as const,
-      up: '100',
-      down: '200',
-    }
-
-    expect(() => doConvertHysteria(proxy)).toThrow('Unsupported protocol faketcp or wechat-video')
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe(`sing-box does not support the Hysteria protocol "${protocol}"`)
   })
 
   it('converts optional obfs field', () => {
@@ -63,7 +52,7 @@ describe('doConvertHysteria', () => {
       obfs: 'obfs-password',
     }
 
-    const result = doConvertHysteria(proxy)
+    const result = HysteriaPipeline.parse(proxy)
 
     expect(result.obfs).toBe('obfs-password')
   })
@@ -80,7 +69,7 @@ describe('doConvertHysteria', () => {
       'auth-str': 'my-auth-token',
     }
 
-    const result = doConvertHysteria(proxy)
+    const result = HysteriaPipeline.parse(proxy)
 
     expect(result.auth_str).toBe('my-auth-token')
   })
@@ -96,7 +85,7 @@ describe('doConvertHysteria', () => {
       down: '200',
     }
 
-    const result = doConvertHysteria(proxy)
+    const result = HysteriaPipeline.parse(proxy)
 
     expect(result.obfs).toBeUndefined()
     expect(result.auth_str).toBeUndefined()
