@@ -1,6 +1,5 @@
-import type { SingboxAnyOutbound } from '../schemas/singbox.ts'
-import type { ConvertedProxy } from './envelope.ts'
 import { z } from 'zod'
+import { omitUndefined } from '../object.ts'
 import { AnyTlsPipeline } from './anytls.ts'
 import { DirectPipeline } from './direct.ts'
 import { asChain, asEndpoint, asOutbound } from './envelope.ts'
@@ -31,51 +30,32 @@ import { WireGuardPipeline } from './wireguard.ts'
  * - an unsupported option (e.g. faketcp) → a `custom` issue raised by the converter
  * - an unknown `type`                    → an `invalid_union` discriminator issue
  * - a malformed proxy                    → the usual field-level issues
+ *
+ * The converters build plain object literals and let absent fields flow through as
+ * `undefined`, which keeps them free of `if (x !== undefined)` boilerplate. Stripping
+ * those keys once here is what makes that safe, so no converter has to do it itself.
  */
-/** Shadowsocks yields a second outbound when ShadowTLS is in play. */
-function shadowsocksEnvelope(result: {
-  outbound: SingboxAnyOutbound
-  shadowTls?: SingboxAnyOutbound | undefined
-}): ConvertedProxy {
-  return result.shadowTls === undefined ? asOutbound(result.outbound) : asChain(result.outbound, result.shadowTls)
-}
-
-export const ProxyToOutbound = z.discriminatedUnion('type', [
-  AnyTlsPipeline.transform(asOutbound),
-  DirectPipeline.transform(asOutbound),
-  RejectPipeline.transform(asOutbound),
-  HttpPipeline.transform(asOutbound),
-  HysteriaPipeline.transform(asOutbound),
-  Hysteria2Pipeline.transform(asOutbound),
-  ShadowsocksPipeline.transform(shadowsocksEnvelope),
-  SnellPipeline.transform(asOutbound),
-  Socks5Pipeline.transform(asOutbound),
-  SSHPipeline.transform(asOutbound),
-  TrojanPipeline.transform(asOutbound),
-  TUICPipeline.transform(asOutbound),
-  VmessPipeline.transform(asOutbound),
-  VLESSPipeline.transform(asOutbound),
-  WireGuardPipeline.transform(asEndpoint),
-  TailscalePipeline.transform(asEndpoint),
-  OpenVPNPipeline.transform(asEndpoint),
-])
-
-export {
-  AnyTlsPipeline,
-  DirectPipeline,
-  HttpPipeline,
-  Hysteria2Pipeline,
-  HysteriaPipeline,
-  ShadowsocksPipeline,
-  SnellPipeline,
-  Socks5Pipeline,
-  SSHPipeline,
-  TrojanPipeline,
-  TUICPipeline,
-  VLESSPipeline,
-  OpenVPNPipeline,
-  RejectPipeline,
-  TailscalePipeline,
-  VmessPipeline,
-  WireGuardPipeline,
-}
+export const ProxyToOutbound = z
+  .discriminatedUnion('type', [
+    AnyTlsPipeline.transform(asOutbound),
+    DirectPipeline.transform(asOutbound),
+    RejectPipeline.transform(asOutbound),
+    HttpPipeline.transform(asOutbound),
+    HysteriaPipeline.transform(asOutbound),
+    Hysteria2Pipeline.transform(asOutbound),
+    // Shadowsocks yields a second outbound when ShadowTLS is in play.
+    ShadowsocksPipeline.transform(({ outbound, shadowTls }) =>
+      shadowTls === undefined ? asOutbound(outbound) : asChain(outbound, shadowTls),
+    ),
+    SnellPipeline.transform(asOutbound),
+    Socks5Pipeline.transform(asOutbound),
+    SSHPipeline.transform(asOutbound),
+    TrojanPipeline.transform(asOutbound),
+    TUICPipeline.transform(asOutbound),
+    VmessPipeline.transform(asOutbound),
+    VLESSPipeline.transform(asOutbound),
+    WireGuardPipeline.transform(asEndpoint),
+    TailscalePipeline.transform(asEndpoint),
+    OpenVPNPipeline.transform(asEndpoint),
+  ])
+  .transform(omitUndefined)

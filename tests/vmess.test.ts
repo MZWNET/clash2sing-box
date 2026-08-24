@@ -1,4 +1,4 @@
-import type { ClashProxyVmess } from '../src/index.ts'
+import type { ClashProxyVmess } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { VmessPipeline } from '../src/converters/vmess.ts'
 

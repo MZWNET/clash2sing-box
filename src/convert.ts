@@ -45,9 +45,35 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
   /** The subset of the above worth racing in URLTest. */
   const testableTags: string[] = []
 
+  /** Offer a tag to the proxy groups, keeping it out of URLTest if it would skew the race. */
+  function offer(tag: string, type: string | undefined): void {
+    selectableTags.push(tag)
+    if (!NOT_LATENCY_TESTABLE.has(type ?? '')) {
+      testableTags.push(tag)
+    }
+  }
+
+  /**
+   * Adopt entries the sing-box input already carried. They pass through untouched — a
+   * string `tag` is all the groups need in order to reference them.
+   */
+  function adopt<T extends { tag: string; type: string }>(entries: unknown[], kind: string, sink: T[]): void {
+    for (const [index, entry] of entries.entries()) {
+      if (!SingboxTaggedOutbound.safeParse(entry).success) {
+        warnings.push(`Skipping sing-box ${kind} at index ${index.toString()}: missing a string "tag"`)
+        continue
+      }
+
+      const adopted = entry as T
+      sink.push(adopted)
+      offer(adopted.tag, adopted.type)
+    }
+  }
+
   // 1. Convert Clash proxies, skipping (never aborting on) anything unusable.
   const clash = Clash.safeParse(clashInput)
-  for (const [index, entry] of (clash.success ? (clash.data.proxies ?? []) : []).entries()) {
+  const proxies = clash.success ? (clash.data.proxies ?? []) : []
+  for (const [index, entry] of proxies.entries()) {
     const identity = ClashProxyRaw.safeParse(entry)
     if (!identity.success) {
       warnings.push(`Skipping proxy at index ${index.toString()}: ${firstIssue(identity.error)}`)
@@ -69,10 +95,7 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     applyDomainResolver(envelope, proxy, options)
     allOutbounds.push(...envelope.outbounds)
     allEndpoints.push(...envelope.endpoints)
-    selectableTags.push(envelope.tag)
-    if (!NOT_LATENCY_TESTABLE.has(primaryType(envelope) ?? '')) {
-      testableTags.push(envelope.tag)
-    }
+    offer(envelope.tag, primaryType(envelope))
   }
 
   // 2. Carry over outbounds and endpoints supplied by the sing-box input.
@@ -83,29 +106,8 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     ...restOfSingboxInput
   } = singbox.success ? singbox.data : {}
 
-  for (const [index, entry] of providedOutbounds.entries()) {
-    if (!SingboxTaggedOutbound.safeParse(entry).success) {
-      warnings.push(`Skipping sing-box outbound at index ${index.toString()}: missing a string "tag"`)
-      continue
-    }
-    const outbound = entry as SingboxAnyOutbound
-    allOutbounds.push(outbound)
-    selectableTags.push(outbound.tag)
-    if (!NOT_LATENCY_TESTABLE.has(outbound.type)) {
-      testableTags.push(outbound.tag)
-    }
-  }
-
-  for (const [index, entry] of providedEndpoints.entries()) {
-    if (!SingboxTaggedOutbound.safeParse(entry).success) {
-      warnings.push(`Skipping sing-box endpoint at index ${index.toString()}: missing a string "tag"`)
-      continue
-    }
-    const endpoint = entry as SingboxAnyEndpoint
-    allEndpoints.push(endpoint)
-    selectableTags.push(endpoint.tag)
-    testableTags.push(endpoint.tag)
-  }
+  adopt(providedOutbounds, 'outbound', allOutbounds)
+  adopt(providedEndpoints, 'endpoint', allEndpoints)
 
   // 3. Build the group outbounds.
   const urltest: z.infer<typeof SingboxOutboundURLTest> = {

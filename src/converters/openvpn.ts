@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxyOpenVPN } from '../schemas/clash.ts'
 import { SingboxEndpointOpenVPNClient } from '../schemas/singbox.ts'
 import { convertDialFields } from './shared.ts'
@@ -45,7 +44,7 @@ export const OpenVPNPipeline = ClashProxyOpenVPN.transform((proxy, ctx): OpenVPN
     return z.NEVER
   }
 
-  return omitUndefined({
+  return {
     type: 'openvpn-client' as const,
     tag: proxy.name,
     server: proxy.server,
@@ -56,13 +55,13 @@ export const OpenVPNPipeline = ClashProxyOpenVPN.transform((proxy, ctx): OpenVPN
     network: proxy.proto,
     username: proxy.username,
     password: proxy.password,
-    tls: omitUndefined({
+    tls: {
       // mihomo carries inline PEM copied out of the .ovpn file, never a path.
       certificate: proxy.ca === undefined ? undefined : [proxy.ca],
       client_certificate: proxy.cert === undefined ? undefined : [proxy.cert],
       client_key: proxy.key === undefined ? undefined : [proxy.key],
       control_wrap: buildControlWrap(proxy),
-    }),
+    },
     data_ciphers: proxy['data-ciphers'],
     // mihomo's `cipher` is the legacy single data-channel cipher, which modern OpenVPN
     // treats as the fallback. An explicit `data-ciphers-fallback` wins over it.
@@ -73,5 +72,5 @@ export const OpenVPNPipeline = ClashProxyOpenVPN.transform((proxy, ctx): OpenVPN
     ping_interval: seconds(proxy.ping),
     ping_restart: seconds(proxy['ping-restart']),
     handshake_window: seconds(proxy['handshake-timeout']),
-  })
+  }
 }).pipe(SingboxEndpointOpenVPNClient)

@@ -29,7 +29,7 @@ const SingboxNetworkField = {
 }
 
 /** Multiplex, supported by the Shadowsocks, Trojan, Vmess and VLESS outbounds. */
-export const SingboxMultiplex = z.object({
+const SingboxMultiplex = z.object({
   enabled: z.boolean(),
   protocol: z.enum(['smux', 'yamux', 'h2mux']).optional(),
   max_connections: z.number().optional(),
@@ -51,7 +51,7 @@ export const SingboxMultiplex = z.object({
  * `reality`/`ech`/`utls` belong here rather than on a single protocol: any TLS-capable
  * outbound may use them, and VLESS in particular needs REALITY to produce a usable config.
  */
-export const SingboxOutboundCommonTlsTransport = z.object({
+const SingboxOutboundCommonTlsTransport = z.object({
   enabled: z.boolean(),
   disable_sni: z.boolean().optional(),
   server_name: z.string().optional(),
@@ -104,7 +104,7 @@ const SingboxOutboundCommonVmessOrVLESSTransportWebSocket = SingboxOutboundCommo
     early_data_header_name: z.string().optional(),
   },
 )
-export const SingboxOutboundCommonVmessOrVLESSTransport = z.discriminatedUnion('type', [
+const SingboxOutboundCommonVmessOrVLESSTransport = z.discriminatedUnion('type', [
   SingboxOutboundCommonVmessOrVLESSTransportGrpc,
   SingboxOutboundCommonVmessOrVLESSTransportHttp,
   SingboxOutboundCommonVmessOrVLESSTransportHttpUpgrade,
@@ -322,7 +322,7 @@ export const SingboxOutboundVLESS = SingboxOutboundBaseTLS.extend({
   transport: SingboxOutboundCommonVmessOrVLESSTransport.optional(),
 })
 
-export const SingboxOutbounds = z.discriminatedUnion('type', [
+const SingboxOutbounds = z.discriminatedUnion('type', [
   SingboxOutboundAnyTls,
   SingboxOutboundBlock,
   SingboxOutboundDirect,
@@ -422,7 +422,7 @@ export const SingboxEndpointOpenVPNClient = z.object({
   ...SingboxDialFields,
 })
 
-export const SingboxEndpoints = z.discriminatedUnion('type', [
+const SingboxEndpoints = z.discriminatedUnion('type', [
   SingboxEndpointWireGuard,
   SingboxEndpointTailscale,
   SingboxEndpointOpenVPNClient,
@@ -451,7 +451,7 @@ export const SingboxTaggedOutbound = z.looseObject({
 })
 
 /** Top-level keys that identify a file as a sing-box config rather than a Clash one. */
-export const SINGBOX_CONFIG_KEYS = ['log', 'dns', 'inbounds', 'outbounds', 'endpoints', 'route'] as const
+const SINGBOX_CONFIG_KEYS = ['log', 'dns', 'inbounds', 'outbounds', 'endpoints', 'route'] as const
 
 /** A document is a sing-box config when it carries at least one sing-box-only section. */
 export const SingboxConfigProbe = z.looseObject({}).refine(config => SINGBOX_CONFIG_KEYS.some(key => key in config), {

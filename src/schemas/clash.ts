@@ -15,7 +15,7 @@ const ClashDialFields = {
 }
 
 /** mihomo's multiplex block. `protocol` uses the same names as sing-box. */
-export const ClashSmux = z.object({
+const ClashSmux = z.object({
   enabled: z.boolean().optional(),
   protocol: z.enum(['smux', 'yamux', 'h2mux']).optional(),
   'max-connections': z.number().optional(),
@@ -85,7 +85,7 @@ export const ClashProxyBaseTLS = ClashProxyBase.extend({
  * The V2Ray transport blocks. Shared by Vmess/VLESS *and* Trojan — sing-box's Trojan
  * outbound accepts a `transport` too, which this converter used to drop entirely.
  */
-export const ClashProxyBaseTransport = ClashProxyBaseTLS.extend({
+const ClashProxyBaseTransport = ClashProxyBaseTLS.extend({
   network: z.enum(['ws', 'h2', 'http', 'grpc', 'tcp']).optional(),
   smux: ClashSmux.optional(),
   'ws-opts': z
@@ -393,9 +393,6 @@ export const ClashConfigProbe = z.looseObject({
   proxies: z.array(z.unknown()),
 })
 
-export type ClashDialInput = z.infer<typeof ClashProxyBase>
 export type ClashProxyBaseTLSInput = z.infer<typeof ClashProxyBaseTLS>
 export type ClashProxyBaseTransportInput = z.infer<typeof ClashProxyBaseTransport>
-export type ClashProxyBaseVmessOrVLESSInput = z.infer<typeof ClashProxyBaseVmessOrVLESS>
-export type ClashProxyRawInput = z.infer<typeof ClashProxyRaw>
 export type ClashSmuxInput = z.infer<typeof ClashSmux>

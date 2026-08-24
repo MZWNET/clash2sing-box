@@ -35,6 +35,6 @@ export function asEndpoint(endpoint: SingboxAnyEndpoint): ConvertedProxy {
  * proxy groups: selecting a bare ShadowTLS shell would give you a tunnel with nothing
  * inside it.
  */
-export function asChain(primary: SingboxAnyOutbound, ...auxiliary: SingboxAnyOutbound[]): ConvertedProxy {
-  return { tag: primary.tag, outbounds: [primary, ...auxiliary], endpoints: [] }
+export function asChain(primary: SingboxAnyOutbound, auxiliary: SingboxAnyOutbound): ConvertedProxy {
+  return { tag: primary.tag, outbounds: [primary, auxiliary], endpoints: [] }
 }

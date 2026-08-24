@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxyHysteria2 } from '../schemas/clash.ts'
 import { SingboxOutboundHysteria2 } from '../schemas/singbox.ts'
 import { convertDialFields, convertNetwork, convertTLSTransport } from './shared.ts'
@@ -30,22 +29,20 @@ const ServerPorts = z
   .optional()
   .catch(undefined)
 
-export const Hysteria2Pipeline = ClashProxyHysteria2.transform((proxy): z.input<typeof SingboxOutboundHysteria2> =>
-  omitUndefined({
-    type: 'hysteria2' as const,
-    tag: proxy.name,
-    server: proxy.server,
-    server_port: proxy.port,
-    ...convertDialFields(proxy),
-    network: convertNetwork(proxy),
-    server_ports: ServerPorts.parse(proxy.ports),
-    up_mbps: Mbps.parse(proxy.up),
-    down_mbps: Mbps.parse(proxy.down),
-    password: proxy.password,
-    obfs:
-      proxy.obfs === undefined || proxy['obfs-password'] === undefined
-        ? undefined
-        : { type: proxy.obfs, password: proxy['obfs-password'] },
-    tls: convertTLSTransport(proxy),
-  }),
-).pipe(SingboxOutboundHysteria2)
+export const Hysteria2Pipeline = ClashProxyHysteria2.transform((proxy): z.input<typeof SingboxOutboundHysteria2> => ({
+  type: 'hysteria2' as const,
+  tag: proxy.name,
+  server: proxy.server,
+  server_port: proxy.port,
+  ...convertDialFields(proxy),
+  network: convertNetwork(proxy),
+  server_ports: ServerPorts.parse(proxy.ports),
+  up_mbps: Mbps.parse(proxy.up),
+  down_mbps: Mbps.parse(proxy.down),
+  password: proxy.password,
+  obfs:
+    proxy.obfs === undefined || proxy['obfs-password'] === undefined
+      ? undefined
+      : { type: proxy.obfs, password: proxy['obfs-password'] },
+  tls: convertTLSTransport(proxy),
+})).pipe(SingboxOutboundHysteria2)

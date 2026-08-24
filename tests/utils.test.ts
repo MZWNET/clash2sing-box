@@ -2,7 +2,8 @@ import type { Options, SingboxConfig } from '../src/index.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as yaml from 'yaml'
-import { convert, merge } from '../src/index.ts'
+import { convert } from '../src/index.ts'
+import { merge } from '../src/object.ts'
 import {
   fullAnyTlsProxy,
   fullHttpProxy,
@@ -31,32 +32,22 @@ import {
 } from './fixtures.ts'
 
 describe('merge()', () => {
-  it('merges two simple objects', () => {
-    expect(merge({ a: 1 }, { b: 2 })).toEqual({ a: 1, b: 2 })
+  // `deepmerge` throws on an empty argument list, which the CLI hits whenever it is given
+  // only sing-box inputs and no Clash ones.
+  it('returns an empty object when given nothing to merge', () => {
+    expect(merge()).toEqual({})
+    expect(merge({}, {})).toEqual({})
   })
 
-  it('merges multiple objects', () => {
-    expect(merge({ a: 1 }, { b: 2 }, { c: 3 })).toEqual({ a: 1, b: 2, c: 3 })
-  })
-
+  // The three deepmerge defaults the conversion relies on: a sing-box input supplies whole
+  // sections that the generated config is folded into, so nesting must merge, `outbounds`
+  // lists must concatenate rather than replace, and a later input must win a scalar clash.
   it('deep merges nested objects', () => {
     expect(merge({ a: { x: 1 } }, { a: { y: 2 } })).toEqual({ a: { x: 1, y: 2 } })
   })
 
-  it('filters out empty objects', () => {
-    expect(merge({ a: 1 }, {})).toEqual({ a: 1 })
-  })
-
-  it('returns empty object when all inputs are empty', () => {
-    expect(merge({}, {})).toEqual({})
-  })
-
-  it('concatenates arrays (deepmerge default behavior)', () => {
+  it('concatenates arrays', () => {
     expect(merge({ a: [1] }, { a: [2] })).toEqual({ a: [1, 2] })
-  })
-
-  it('returns single object as-is (deepmerge behavior)', () => {
-    expect(merge({ a: 1 })).toEqual({ a: 1 })
   })
 
   it('later values override earlier values for same key', () => {
@@ -726,5 +717,31 @@ describe('convert() resilience', () => {
 
     expect(tagsOf(config)).toEqual(['proxy', 'urltest-proxy'])
     expect(warnings).toEqual([])
+  })
+
+  it('adopts endpoints supplied by the sing-box input and offers them to the groups', () => {
+    const { config, warnings } = convert(
+      { proxies: [goodProxy] },
+      {
+        endpoints: [{ type: 'wireguard', tag: 'wg-provided' }],
+      },
+    )
+
+    expect(config.endpoints?.map(endpoint => endpoint.tag)).toEqual(['wg-provided'])
+    const selector = config.outbounds!.find(outbound => outbound.type === 'selector')!
+    expect(selector.outbounds).toContain('wg-provided')
+    expect(warnings).toEqual([])
+  })
+
+  // A tag is the one thing a group needs to reference an entry, so an entry without one is
+  // dropped rather than emitted into a config that sing-box would then reject.
+  it.each([
+    ['outbound', { outbounds: [{ type: 'direct' }] }],
+    ['endpoint', { endpoints: [{ type: 'wireguard' }] }],
+  ])('skips an untagged sing-box %s', (kind, singboxInput) => {
+    const { config, warnings } = convert({ proxies: [goodProxy] }, singboxInput)
+
+    expect(tagsOf(config)).toEqual(['proxy', 'urltest-proxy', 'good-ss'])
+    expect(warnings).toEqual([`Skipping sing-box ${kind} at index 0: missing a string "tag"`])
   })
 })

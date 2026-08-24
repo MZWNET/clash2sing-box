@@ -1,4 +1,4 @@
-import type { ClashProxyBaseTLS, ClashProxyBaseVmessOrVLESS } from '../src/index.ts'
+import type { ClashProxyBaseTLS, ClashProxyBaseVmessOrVLESS } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { convertTLSTransport, convertTransport } from '../src/converters/shared.ts'
 

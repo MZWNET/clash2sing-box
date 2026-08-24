@@ -11,7 +11,7 @@ import type {
   ClashProxyTUIC,
   ClashProxyVLESS,
   ClashProxyVmess,
-} from '../src/index.ts'
+} from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 
 type AnyTlsProxy = z.infer<typeof ClashProxyAnyTls>

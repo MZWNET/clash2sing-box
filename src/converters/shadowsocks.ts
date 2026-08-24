@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxyShadowsocks } from '../schemas/clash.ts'
 import { SingboxOutboundShadowsocks, SingboxOutboundShadowTLS } from '../schemas/singbox.ts'
 import { convertDialFields, convertMultiplex, convertNetwork } from './shared.ts'
@@ -68,7 +67,7 @@ export const ShadowsocksPipeline = ClashProxyShadowsocks.transform((proxy, ctx):
     const shellTag = `${proxy.name}-shadowtls`
     const fingerprint = proxy['client-fingerprint']
     return {
-      outbound: omitUndefined({
+      outbound: {
         type: 'shadowsocks' as const,
         tag: proxy.name,
         method: proxy.cipher,
@@ -79,8 +78,8 @@ export const ShadowsocksPipeline = ClashProxyShadowsocks.transform((proxy, ctx):
         // its own. Any `dialer-proxy` belongs on the shell, which does the real dialing.
         detour: shellTag,
         network: convertNetwork(proxy),
-      }),
-      shadowTls: omitUndefined({
+      },
+      shadowTls: {
         type: 'shadowtls' as const,
         tag: shellTag,
         server: proxy.server,
@@ -88,17 +87,17 @@ export const ShadowsocksPipeline = ClashProxyShadowsocks.transform((proxy, ctx):
         ...convertDialFields(proxy),
         version,
         password: opts?.password,
-        tls: omitUndefined({
+        tls: {
           enabled: true,
           server_name: opts?.host,
           utls: fingerprint === undefined ? undefined : { enabled: true, fingerprint },
-        }),
-      }),
+        },
+      },
     }
   }
 
   return {
-    outbound: omitUndefined({
+    outbound: {
       type: 'shadowsocks' as const,
       tag: proxy.name,
       server: proxy.server,
@@ -112,6 +111,6 @@ export const ShadowsocksPipeline = ClashProxyShadowsocks.transform((proxy, ctx):
       plugin_opts: buildPluginOpts(proxy),
       multiplex: convertMultiplex(proxy.smux),
       udp_over_tcp: udpOverTcp(proxy),
-    }),
+    },
   }
 }).pipe(ShadowsocksResult)

@@ -1,4 +1,4 @@
-import type { ClashProxyTrojan } from '../src/index.ts'
+import type { ClashProxyTrojan } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { TrojanPipeline } from '../src/converters/trojan.ts'
 

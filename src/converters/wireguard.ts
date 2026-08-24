@@ -1,6 +1,5 @@
 import { Buffer } from 'node:buffer'
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxyWireGuard } from '../schemas/clash.ts'
 import { SingboxEndpointWireGuard } from '../schemas/singbox.ts'
 import { convertDialFields } from './shared.ts'
@@ -31,16 +30,14 @@ function toReserved(reserved: number[] | string | undefined): number[] | undefin
 
 function buildPeers(proxy: WireGuardProxy): WireGuardPeer[] {
   if (proxy.peers !== undefined && proxy.peers.length > 0) {
-    return proxy.peers.map(peer =>
-      omitUndefined({
-        address: peer.server,
-        port: peer.port,
-        public_key: peer['public-key'],
-        pre_shared_key: peer['pre-shared-key'],
-        allowed_ips: peer['allowed-ips'] ?? DEFAULT_ALLOWED_IPS,
-        reserved: toReserved(peer.reserved),
-      }),
-    )
+    return proxy.peers.map(peer => ({
+      address: peer.server,
+      port: peer.port,
+      public_key: peer['public-key'],
+      pre_shared_key: peer['pre-shared-key'],
+      allowed_ips: peer['allowed-ips'] ?? DEFAULT_ALLOWED_IPS,
+      reserved: toReserved(peer.reserved),
+    }))
   }
 
   // Single-peer form: the peer fields sit at the top level.
@@ -48,7 +45,7 @@ function buildPeers(proxy: WireGuardProxy): WireGuardPeer[] {
     return []
   }
   return [
-    omitUndefined({
+    {
       address: proxy.server,
       port: proxy.port,
       public_key: proxy['public-key'],
@@ -56,7 +53,7 @@ function buildPeers(proxy: WireGuardProxy): WireGuardPeer[] {
       allowed_ips: proxy['allowed-ips'] ?? DEFAULT_ALLOWED_IPS,
       persistent_keepalive_interval: proxy['persistent-keepalive'],
       reserved: toReserved(proxy.reserved),
-    }),
+    },
   ]
 }
 
@@ -81,7 +78,7 @@ export const WireGuardPipeline = ClashProxyWireGuard.transform((proxy, ctx): Wir
     return z.NEVER
   }
 
-  return omitUndefined({
+  return {
     type: 'wireguard' as const,
     tag: proxy.name,
     ...convertDialFields(proxy),
@@ -89,5 +86,5 @@ export const WireGuardPipeline = ClashProxyWireGuard.transform((proxy, ctx): Wir
     private_key: proxy['private-key'],
     mtu: proxy.mtu,
     peers,
-  })
+  }
 }).pipe(SingboxEndpointWireGuard)

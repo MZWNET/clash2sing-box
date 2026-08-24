@@ -1,7 +1,7 @@
-import type { ClashProxyVLESS as ClashProxyVLESSType } from '../src/index.ts'
+import type { ClashProxyVLESS as ClashProxyVLESSType } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { VLESSPipeline } from '../src/converters/vless.ts'
-import { ClashProxyVLESS } from '../src/index.ts'
+import { ClashProxyVLESS } from '../src/schemas/clash.ts'
 
 type VLESSProxy = z.infer<typeof ClashProxyVLESSType>
 

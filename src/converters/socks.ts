@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxySocks5 } from '../schemas/clash.ts'
 import { SingboxOutboundSocks } from '../schemas/singbox.ts'
 import { convertDialFields, convertNetwork } from './shared.ts'
@@ -12,7 +11,7 @@ export const Socks5Pipeline = ClashProxySocks5.transform((proxy, ctx): z.input<t
     return z.NEVER
   }
 
-  return omitUndefined({
+  return {
     type: 'socks' as const,
     tag: proxy.name,
     server: proxy.server,
@@ -22,5 +21,5 @@ export const Socks5Pipeline = ClashProxySocks5.transform((proxy, ctx): z.input<t
     username: proxy.username,
     // A password without a username is meaningless to sing-box.
     password: proxy.username === undefined ? undefined : proxy.password,
-  })
+  }
 }).pipe(SingboxOutboundSocks)

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxyHysteria } from '../schemas/clash.ts'
 import { SingboxOutboundHysteria } from '../schemas/singbox.ts'
 import { convertDialFields, convertNetwork, convertTLSTransport } from './shared.ts'
@@ -15,7 +14,7 @@ export const HysteriaPipeline = ClashProxyHysteria.transform((proxy, ctx): z.inp
     return z.NEVER
   }
 
-  return omitUndefined({
+  return {
     type: 'hysteria' as const,
     tag: proxy.name,
     server: proxy.server,
@@ -27,5 +26,5 @@ export const HysteriaPipeline = ClashProxyHysteria.transform((proxy, ctx): z.inp
     obfs: proxy.obfs,
     auth_str: proxy['auth-str'],
     tls: convertTLSTransport(proxy),
-  })
+  }
 }).pipe(SingboxOutboundHysteria)

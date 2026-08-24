@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { omitUndefined } from '../object.ts'
 import { ClashProxySnell } from '../schemas/clash.ts'
 import { SingboxOutboundSnell } from '../schemas/singbox.ts'
 import { convertDialFields, convertNetwork } from './shared.ts'
@@ -29,7 +28,7 @@ export const SnellPipeline = ClashProxySnell.transform((proxy, ctx): z.input<typ
     return z.NEVER
   }
 
-  return omitUndefined({
+  return {
     type: 'snell' as const,
     tag: proxy.name,
     server: proxy.server,
@@ -41,5 +40,5 @@ export const SnellPipeline = ClashProxySnell.transform((proxy, ctx): z.input<typ
     reuse: proxy.reuse,
     obfs_mode: mode === 'http' ? ('http' as const) : undefined,
     obfs_host: mode === 'http' ? obfs?.host : undefined,
-  })
+  }
 }).pipe(SingboxOutboundSnell)

@@ -1,4 +1,4 @@
-import type { ClashProxySSH } from '../src/index.ts'
+import type { ClashProxySSH } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { SSHPipeline } from '../src/converters/ssh.ts'
 

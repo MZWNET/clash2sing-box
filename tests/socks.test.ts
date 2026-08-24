@@ -1,4 +1,4 @@
-import type { ClashProxySocks5 } from '../src/index.ts'
+import type { ClashProxySocks5 } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { Socks5Pipeline } from '../src/converters/socks.ts'
 

@@ -8,8 +8,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * Recursively drop keys whose value is `undefined`.
  *
  * Converters build plain object literals and let absent fields flow through as `undefined`,
- * which keeps them free of the `if (x !== undefined) out.y = x` boilerplate. This runs once
- * at the end of the pipeline so consumers never see keys with `undefined` values.
+ * which keeps them free of the `if (x !== undefined) out.y = x` boilerplate. `ProxyToOutbound`
+ * runs this once over each converted proxy so consumers never see keys with `undefined` values.
  */
 export function omitUndefined<T>(value: T): T {
   if (Array.isArray(value)) {
@@ -28,11 +28,7 @@ export function omitUndefined<T>(value: T): T {
   return result as T
 }
 
-/** Deep-merge objects, concatenating arrays. Empty objects are ignored. */
+/** Deep-merge objects, concatenating arrays. `deepmerge` itself needs at least one argument. */
 export function merge(...objects: object[]): Record<string, unknown> {
-  const objectsToMerge = objects.filter(obj => Object.keys(obj).length > 0)
-  if (objectsToMerge.length === 0) {
-    return {}
-  }
-  return deepmerge(...objectsToMerge) as Record<string, unknown>
+  return objects.length === 0 ? {} : (deepmerge(...objects) as Record<string, unknown>)
 }

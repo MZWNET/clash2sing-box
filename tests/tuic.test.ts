@@ -1,4 +1,4 @@
-import type { ClashProxyTUIC } from '../src/index.ts'
+import type { ClashProxyTUIC } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { TUICPipeline } from '../src/converters/tuic.ts'
 

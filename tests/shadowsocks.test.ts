@@ -1,4 +1,4 @@
-import type { ClashProxyShadowsocks } from '../src/index.ts'
+import type { ClashProxyShadowsocks } from '../src/schemas/clash.ts'
 import type { z } from 'zod'
 import { ShadowsocksPipeline } from '../src/converters/shadowsocks.ts'
 

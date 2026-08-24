@@ -86,17 +86,23 @@ not emitted: it was deprecated in 1.12.0 and removed in 1.14.0 in favour of
 
 ```shell
 $ clash2sing-box convert --help
-Usage: clash2sing-box convert [options] <input...>
+clash2sing-box convert v0.0.1 - Convert Clash and sing-box configurations into one sing-box config
 
-Arguments:
-  input                                   Input files or http(s) URLs
+Usage
+  $ clash2sing-box convert <input...> [flags]
 
-Options:
-  -o, --output <string>                   Output file path (default: stdout)
-  --outbound-domainresolver-tag <string>  The name of the domain resolver, required for setting resolver strategy
-  --outbound-selector-default <integer>   Use the n-th outbound as the default in the selector outbound
-  --outbound-selector-tag <string...>     The name(s) of the selector outbound(s)
-  -h, --help                              display help for command
+Parameters
+  <input...>  Array<string>  Input files or http(s) URLs
+
+Flags
+  --output, -o                   String         Output file path (default: stdout)
+  --outbound-domainresolver-tag  String         The name of the domain resolver, required for setting resolver strategy
+  --outbound-selector-default    String         Use the n-th outbound as the default in the selector outbound (integer)
+  --outbound-selector-tag        Array<String>  The name(s) of the selector outbound(s); repeatable, or comma-separated  [default: []]
+
+Global Flags
+  --help, -h     Boolean  Show help               [default: false]
+  --version, -V  Boolean  Prints current version  [default: false]
 ```
 
 Inputs may be local paths or `http(s)` URLs, and may be Clash YAML/JSON or sing-box JSON.
@@ -105,9 +111,14 @@ one with `log`/`dns`/`inbounds`/`outbounds`/`endpoints`/`route` as sing-box. Mul
 same kind are deep-merged, so a sing-box config supplies the `dns`, `log` and `route`
 sections that the generated outbounds are merged into.
 
+`--outbound-selector-tag` takes one tag per occurrence, and each occurrence may also be a
+comma-separated list — the two forms may be mixed.
+
 ```shell
 $ clash2sing-box convert ./tests/clash.yaml -o ./sing-box.json
 $ clash2sing-box convert https://example.com/subscription.yaml ./base.json -o ./sing-box.json
+$ clash2sing-box convert ./tests/clash.yaml --outbound-selector-tag proxy,streaming
+$ clash2sing-box convert ./tests/clash.yaml --outbound-selector-tag proxy --outbound-selector-tag streaming
 ```
 
 ### Library
@@ -126,16 +137,9 @@ console.log(JSON.stringify(config, null, 2))
 `convert` returns the config as an object and never writes to the console — skipped
 proxies and normalized values are reported through `warnings`.
 
-The Clash and sing-box [Zod](https://zod.dev/) schemas are exported too, along with one
-pipeline per protocol (`VLESSPipeline`, `TrojanPipeline`, …) and the combined
-`ProxyToOutbound` schema, if you want to convert a single proxy:
-
-```ts
-import { ProxyToOutbound } from '@mzwing/clash2sing-box'
-
-const result = ProxyToOutbound.safeParse(proxy)
-if (!result.success) console.warn(result.error.issues[0]?.message)
-```
+That is the whole public API, alongside the `Options`, `ConvertResult` and `SingboxConfig`
+types. To convert a single proxy, pass a one-element `proxies` list: the schemas and the
+per-protocol converters are internals, free to change between versions.
 
 ## Development
 

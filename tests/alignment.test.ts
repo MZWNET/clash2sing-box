@@ -1,18 +1,14 @@
-import {
-  AnyTlsPipeline,
-  convertDialFields,
-  convertMultiplex,
-  convertNetwork,
-  DirectPipeline,
-  HttpPipeline,
-  ShadowsocksPipeline,
-  Socks5Pipeline,
-  SSHPipeline,
-  TrojanPipeline,
-  TUICPipeline,
-  VLESSPipeline,
-  VmessPipeline,
-} from '../src/index.ts'
+import { AnyTlsPipeline } from '../src/converters/anytls.ts'
+import { DirectPipeline } from '../src/converters/direct.ts'
+import { HttpPipeline } from '../src/converters/http.ts'
+import { ShadowsocksPipeline } from '../src/converters/shadowsocks.ts'
+import { convertDialFields, convertMultiplex, convertNetwork } from '../src/converters/shared.ts'
+import { Socks5Pipeline } from '../src/converters/socks.ts'
+import { SSHPipeline } from '../src/converters/ssh.ts'
+import { TrojanPipeline } from '../src/converters/trojan.ts'
+import { TUICPipeline } from '../src/converters/tuic.ts'
+import { VLESSPipeline } from '../src/converters/vless.ts'
+import { VmessPipeline } from '../src/converters/vmess.ts'
 
 describe('convertDialFields', () => {
   it('maps every mihomo dial option onto its sing-box name', () => {

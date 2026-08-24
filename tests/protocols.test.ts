@@ -1,13 +1,11 @@
-import {
-  convert,
-  DirectPipeline,
-  OpenVPNPipeline,
-  RejectPipeline,
-  ShadowsocksPipeline,
-  SnellPipeline,
-  TailscalePipeline,
-  WireGuardPipeline,
-} from '../src/index.ts'
+import { DirectPipeline } from '../src/converters/direct.ts'
+import { OpenVPNPipeline } from '../src/converters/openvpn.ts'
+import { RejectPipeline } from '../src/converters/reject.ts'
+import { ShadowsocksPipeline } from '../src/converters/shadowsocks.ts'
+import { SnellPipeline } from '../src/converters/snell.ts'
+import { TailscalePipeline } from '../src/converters/tailscale.ts'
+import { WireGuardPipeline } from '../src/converters/wireguard.ts'
+import { convert } from '../src/index.ts'
 
 describe('direct pipeline', () => {
   it('converts a direct proxy, which carries no server or port', () => {
