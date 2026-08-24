@@ -11,17 +11,14 @@
   "license": "GPL-3.0-only",
   "author": "mzwing",
   "bin": {
-    "clash2sing-box": "./dist/cli.mjs"
+    "clash2sing-box": "./dist/index.mjs"
   },
   "files": [
     "dist"
   ],
   "type": "module",
-  "exports": {
-    ".": "./dist/index.mjs"
-  },
   "scripts": {
-    "start": "tsx src/cli.ts",
+    "start": "tsx src/index.ts",
     "build": "tsdown",
     "build:watch": "tsdown --watch",
     "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",

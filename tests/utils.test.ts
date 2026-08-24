@@ -1,8 +1,9 @@
-import type { Options, SingboxConfig } from '../src/index.ts'
+import type { Options } from '../src/schemas/options.ts'
+import type { SingboxConfig } from '../src/schemas/singbox.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as yaml from 'yaml'
-import { convert } from '../src/index.ts'
+import { convert } from '../src/convert.ts'
 import { merge } from '../src/object.ts'
 import {
   fullAnyTlsProxy,

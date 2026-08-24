@@ -5,14 +5,14 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { classifyInputs, isHttpUrl, main } from '../src/cli.ts'
+import { classifyInputs, isHttpUrl, main } from '../src/index.ts'
 
 async function makeTempDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'clash2sing-box-'))
 }
 
 const execFileAsync = promisify(execFile)
-const CLI = fileURLToPath(new URL('../src/cli.ts', import.meta.url))
+const CLI = fileURLToPath(new URL('../src/index.ts', import.meta.url))
 
 /**
  * Error paths have to run out-of-process: `friendlyErrorPlugin` reports a failure by calling

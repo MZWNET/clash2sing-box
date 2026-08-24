@@ -121,25 +121,8 @@ $ clash2sing-box convert ./tests/clash.yaml --outbound-selector-tag proxy,stream
 $ clash2sing-box convert ./tests/clash.yaml --outbound-selector-tag proxy --outbound-selector-tag streaming
 ```
 
-### Library
-
-```ts
-import { convert } from '@mzwing/clash2sing-box'
-
-const { config, warnings } = convert(clashConfig, singboxConfig, {
-  outbound: { selector: { tag: ['proxy', 'streaming'] } },
-})
-
-for (const warning of warnings) console.warn(warning)
-console.log(JSON.stringify(config, null, 2))
-```
-
-`convert` returns the config as an object and never writes to the console — skipped
-proxies and normalized values are reported through `warnings`.
-
-That is the whole public API, alongside the `Options`, `ConvertResult` and `SingboxConfig`
-types. To convert a single proxy, pass a one-element `proxies` list: the schemas and the
-per-protocol converters are internals, free to change between versions.
+This is a command line tool, not a library: it exposes no importable entry point, and
+everything under `src/` is an internal free to change between versions.
 
 ## Development
 
