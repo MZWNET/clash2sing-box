@@ -51,8 +51,8 @@ export const fullAnyTlsProxy: AnyTlsProxy = {
   'skip-cert-verify': false,
   alpn: ['h2', 'http/1.1'],
   sni: 'example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:abcdef1234567890',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
   'idle-session-check-interval': 60,
   'idle-session-timeout': 300,
   'min-idle-session': 2,
@@ -82,8 +82,8 @@ export const fullHttpProxy: HttpProxy = {
   'skip-cert-verify': true,
   alpn: ['h2'],
   sni: 'proxy.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:deadbeef12345678',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================
@@ -116,8 +116,8 @@ export const fullHysteriaProxy: HysteriaProxy = {
   'skip-cert-verify': false,
   alpn: ['h3'],
   sni: 'hysteria.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:cafebabe12345678',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================
@@ -143,7 +143,9 @@ export const fullHysteria2Proxy: Hysteria2Proxy = {
   obfs: 'salamander',
   'obfs-password': 'obfs-secret',
   ports: '10000-20000',
-  fingerprint: 'chrome',
+  'hop-interval': '30s',
+  // Certificate pinning: mihomo rejects a browser name here, that is `client-fingerprint`.
+  fingerprint: '7EA15B96CE1E4D4C76CBF48EE86EA7CCA09653BE4E982C054C56DA347B0B9738',
   'client-fingerprint': 'firefox',
   'reality-opts': {
     'public-key': 'aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789',
@@ -159,13 +161,12 @@ export const fullHysteria2Proxy: Hysteria2Proxy = {
   'skip-cert-verify': false,
   alpn: ['h3'],
   sni: 'hy2.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:1234567890abcdef',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
   tfo: true,
   mptcp: true,
   'interface-name': 'utun0',
   'routing-mark': 100,
-  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
 }
 
 // =============================================================================
@@ -226,8 +227,8 @@ export const fullSocks5Proxy: Socks5Proxy = {
   'skip-cert-verify': true,
   alpn: ['h2', 'http/1.1'],
   sni: 'socks.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:fedcba0987654321',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================
@@ -284,8 +285,8 @@ export const fullTrojanProxy: TrojanProxy = {
   'skip-cert-verify': false,
   alpn: ['h2', 'http/1.1'],
   sni: 'trojan.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:abcdefabcdef1234',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================
@@ -318,8 +319,8 @@ export const fullTUICProxy: TUICProxy = {
   'skip-cert-verify': false,
   alpn: ['h3'],
   sni: 'tuic.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:1122334455667788',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================
@@ -362,8 +363,8 @@ export const fullVmessProxy: VmessProxy = {
   alpn: ['h2', 'http/1.1'],
   servername: 'vmess.example.com',
   sni: 'vmess.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:aabbccdd11223344',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================
@@ -396,8 +397,8 @@ export const fullVlessProxy: VlessProxy = {
   alpn: ['h2'],
   servername: 'vless.example.com',
   sni: 'vless.example.com',
-  'x-clash2singbox-certificate': ['-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----'],
-  'x-clash2singbox-certificate-public-key-sha256': 'sha256:5566778899001122',
+  certificate: '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAL...\n-----END CERTIFICATE-----',
+  'private-key': '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkq...\n-----END PRIVATE KEY-----',
 }
 
 // =============================================================================

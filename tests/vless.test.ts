@@ -246,7 +246,10 @@ describe('vless pipeline REALITY/ECH', () => {
       makeVLESSProxy({ tls: true, 'ech-opts': { enable: true, config: 'ech-config' } }),
     )
 
-    expect(result.tls?.ech).toEqual({ enabled: true, config: 'ech-config' })
+    expect(result.tls?.ech).toEqual({
+      enabled: true,
+      config: ['-----BEGIN ECH CONFIGS-----', 'ech-config', '-----END ECH CONFIGS-----'],
+    })
   })
 
   it('does not emit tls.ech when ech-opts is disabled', () => {

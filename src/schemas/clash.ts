@@ -72,13 +72,15 @@ export const ClashProxyBaseTLS = ClashProxyBase.extend({
     description: 'Only used by v2ray protocols',
   }),
   sni: z.string().optional(),
-  fingerprint: z.string().optional(),
+  fingerprint: z.string().optional().meta({
+    description: 'Certificate pinning, not a uTLS profile: mihomo hashes the whole certificate',
+  }),
   'client-fingerprint': z.string().optional(),
   'reality-opts': ClashRealityOpts.optional(),
   'ech-opts': ClashEchOpts.optional(),
+  // The client half of a mutual-TLS pair, not a CA to trust.
   certificate: z.string().optional(),
-  'x-clash2singbox-certificate': z.array(z.string()).optional(),
-  'x-clash2singbox-certificate-public-key-sha256': z.string().optional(),
+  'private-key': z.string().optional(),
 })
 
 /**
@@ -161,6 +163,7 @@ export const ClashProxyHysteria2 = ClashProxyBaseTLS.extend({
   obfs: z.string().optional(),
   'obfs-password': z.string().optional(),
   ports: z.string().optional(),
+  'hop-interval': z.string().optional(),
 })
 
 export const ClashProxySocks5 = ClashProxyBaseTLS.extend({
@@ -377,6 +380,10 @@ export const ClashProxyRaw = z.looseObject({
   udp: z.boolean().optional().catch(undefined),
   'ip-version': z.enum(['dual', 'ipv4', 'ipv6', 'ipv4-prefer', 'ipv6-prefer']).optional().catch(undefined),
   flow: z.string().optional().catch(undefined),
+  tfo: z.boolean().optional().catch(undefined),
+  fingerprint: z.string().optional().catch(undefined),
+  'udp-relay-mode': z.string().optional().catch(undefined),
+  'udp-over-stream': z.boolean().optional().catch(undefined),
 })
 
 /**

@@ -4,6 +4,7 @@ import type {
   SingboxAnyEndpoint,
   SingboxAnyOutbound,
   SingboxConfig,
+  SingboxOutboundCommonTls,
   SingboxOutboundURLTest,
 } from './schemas/singbox.ts'
 import type { z } from 'zod'
@@ -87,9 +88,7 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
       continue
     }
 
-    if (proxy.type === 'vless' && proxy.flow !== undefined && proxy.flow !== VLESS_FLOW) {
-      warnings.push(`Normalized VLESS flow "${proxy.flow}" to "${VLESS_FLOW}" for proxy "${proxy.name}"`)
-    }
+    warnings.push(...normalizations(proxy))
 
     const envelope: ConvertedProxy = converted.data
     applyDomainResolver(envelope, proxy, options)
@@ -97,6 +96,9 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     allEndpoints.push(...envelope.endpoints)
     offer(envelope.tag, primaryType(envelope))
   }
+
+  // Runs before the sing-box input is adopted, so pinning only ever touches what we built.
+  warnings.push(...applyTLSPinning(allOutbounds, options))
 
   // 2. Carry over outbounds and endpoints supplied by the sing-box input.
   const singbox = SingboxConfigSchema.safeParse(singboxInput)
@@ -110,17 +112,31 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
   adopt(providedEndpoints, 'endpoint', allEndpoints)
 
   // 3. Build the group outbounds.
+  const excluded = new Set(options.outbound?.noUrltest ?? [])
+  for (const tag of excluded) {
+    if (!selectableTags.includes(tag)) {
+      warnings.push(`No outbound named "${tag}" to exclude from URLTest`)
+    }
+  }
+  const raceableTags = testableTags.filter(tag => !excluded.has(tag))
+
   const urltest: z.infer<typeof SingboxOutboundURLTest> = {
     type: 'urltest',
     tag: 'urltest-proxy',
     // Falling back keeps a direct-only config from producing an empty URLTest group.
-    outbounds: testableTags.length > 0 ? testableTags : selectableTags,
+    outbounds: raceableTags.length > 0 ? raceableTags : selectableTags,
   }
+
+  const selectorTags = options.outbound?.selector?.tag ?? ['proxy']
+  const groups = buildGroups(options.outbound?.group ?? [], selectableTags, raceableTags, urltest.tag, selectorTags)
 
   const selectorTemplate: z.infer<typeof SingboxOutboundSelector> = {
     type: 'selector',
     tag: 'proxy',
-    outbounds: [urltest.tag, ...selectableTags],
+    // Groups come before the individual nodes: picking a region is the common case, and
+    // they are deliberately absent from URLTest itself — a nested group would skew the
+    // race for the same reason `NOT_LATENCY_TESTABLE` exists.
+    outbounds: [urltest.tag, ...groups.map(group => group.tag), ...selectableTags],
     default: urltest.tag,
   }
 
@@ -135,17 +151,129 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     selectorTemplate.default = target
   }
 
-  const selectorTags = options.outbound?.selector?.tag ?? [selectorTemplate.tag]
   const selectors = selectorTags.map(tag => SingboxOutboundSelector.parse({ ...selectorTemplate, tag }))
 
   // 4. Merge with everything else the sing-box input carried (dns, log, route, …).
-  const generated: SingboxConfig = { outbounds: [...selectors, urltest, ...allOutbounds] }
+  const generated: SingboxConfig = { outbounds: [...selectors, urltest, ...groups, ...allOutbounds] }
   // Only emitted when WireGuard is actually in play, so ordinary configs stay unchanged.
   if (allEndpoints.length > 0) {
     generated.endpoints = allEndpoints
   }
 
   return { config: merge(generated, restOfSingboxInput), warnings }
+}
+
+type GroupOutbound = z.infer<typeof SingboxOutboundURLTest> | z.infer<typeof SingboxOutboundSelector>
+
+/**
+ * Turn `tag=regex` specifications into proxy groups over the tags on offer.
+ *
+ * A group whose regex matches nothing still has to be emitted. Route rules reference these
+ * groups by tag, so dropping one would leave a rule pointing at an outbound that is not
+ * there — and sing-box rejects both that and a group with an empty `outbounds`. The empty
+ * case therefore degrades to a selector aliasing URLTest, which is what you would have
+ * fallen back to anyway.
+ */
+function buildGroups(
+  specs: NonNullable<NonNullable<Options['outbound']>['group']>,
+  selectableTags: string[],
+  raceableTags: string[],
+  urltestTag: string,
+  selectorTags: string[],
+): GroupOutbound[] {
+  if (specs.length === 0) {
+    return []
+  }
+
+  // A duplicate tag makes sing-box reject the whole config, and the culprit is far from
+  // obvious in a merged file, so name it here instead.
+  const taken = new Set([...selectableTags, urltestTag, ...selectorTags])
+  for (const { tag } of specs) {
+    if (taken.has(tag)) {
+      throw new Error(`Group tag "${tag}" collides with an existing outbound of that name`)
+    }
+  }
+
+  // Matched against the raceable tags, not every selectable one: "keep this out of URLTest"
+  // is a property of the outbound, so it holds in a named group too, not just the catch-all.
+  return specs.map(({ tag, match }) => {
+    const members = raceableTags.filter(candidate => match.test(candidate))
+    return members.length > 0
+      ? { type: 'urltest', tag, outbounds: members }
+      : { type: 'selector', tag, outbounds: [urltestTag] }
+  })
+}
+
+/**
+ * Differences between what the Clash proxy asked for and what sing-box can express, short
+ * of dropping the proxy. A converter's only channel is `ctx.addIssue`, which skips the
+ * proxy outright, so anything milder is reported from here instead.
+ */
+function normalizations(proxy: ClashProxyIdentity): string[] {
+  const notes: string[] = []
+
+  if (proxy.type === 'vless' && proxy.flow !== undefined && proxy.flow !== VLESS_FLOW) {
+    notes.push(`Normalized VLESS flow "${proxy.flow}" to "${VLESS_FLOW}" for proxy "${proxy.name}"`)
+  }
+  if (proxy.fingerprint !== undefined) {
+    notes.push(
+      `Dropped "fingerprint" from proxy "${proxy.name}": mihomo pins the certificate and sing-box pins the public key, so the two hashes are not interchangeable. Use --outbound-tls-certificate or --outbound-tls-certificate-public-key-sha256`,
+    )
+  }
+  if (proxy['udp-over-stream'] === true && proxy['udp-relay-mode'] !== undefined) {
+    notes.push(`Dropped "udp-relay-mode" from proxy "${proxy.name}": sing-box refuses it alongside udp-over-stream`)
+  }
+  if (proxy.type === 'anytls' && proxy.tfo === true) {
+    notes.push(`Dropped "tfo" from proxy "${proxy.name}": sing-box refuses it on the AnyTLS outbound`)
+  }
+
+  return notes
+}
+
+/**
+ * Pin certificates onto the outbounds whose tag matches, which is how pinning is expressed
+ * here: mihomo's own `fingerprint` hashes the certificate where sing-box hashes the public
+ * key, so there is nothing to convert.
+ *
+ * Only entries already carrying a `tls` block are eligible — sing-box rejects `tls` outright
+ * on Shadowsocks, SOCKS, SSH and Snell, and on a Vmess or HTTP proxy that did not ask for it.
+ */
+function applyTLSPinning(outbounds: SingboxAnyOutbound[], options: Options): string[] {
+  const certificates = options.outbound?.tls?.certificate ?? []
+  const hashes = options.outbound?.tls?.certificatePublicKeySha256 ?? []
+  if (certificates.length === 0 && hashes.length === 0) {
+    return []
+  }
+
+  const warnings: string[] = []
+  const secured = outbounds.filter(
+    (outbound): outbound is SingboxAnyOutbound & { tls: SingboxOutboundCommonTls } =>
+      'tls' in outbound && outbound.tls !== undefined,
+  )
+
+  /** A pattern matching nothing is nearly always a typo, so every spec reports either way. */
+  function pin(match: RegExp, what: string, onto: (tls: SingboxOutboundCommonTls) => void): void {
+    const targets = secured.filter(outbound => match.test(outbound.tag))
+    for (const { tls } of targets) {
+      onto(tls)
+    }
+    if (targets.length === 0) {
+      warnings.push(`No TLS-capable outbound matches "${match.source}" to pin ${what} onto`)
+    }
+  }
+
+  for (const { match, certificate } of certificates) {
+    pin(match, 'a certificate', tls => {
+      tls.certificate = certificate
+    })
+  }
+  for (const { match, hash } of hashes) {
+    pin(match, 'a public key', tls => {
+      tls.certificate_public_key_sha256 = [...(tls.certificate_public_key_sha256 ?? []), hash]
+    })
+  }
+
+  return warnings
 }
 
 /**

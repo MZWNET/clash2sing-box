@@ -25,7 +25,7 @@ const SingboxDialFields = {
  * emitting it on (say) `direct` or `http` would break the whole config.
  */
 const SingboxNetworkField = {
-  network: z.enum(['tcp', 'udp', 'tcp,udp']).optional(),
+  network: z.enum(['tcp', 'udp']).optional(),
 }
 
 /** Multiplex, supported by the Shadowsocks, Trojan, Vmess and VLESS outbounds. */
@@ -50,6 +50,8 @@ const SingboxMultiplex = z.object({
  *
  * `reality`/`ech`/`utls` belong here rather than on a single protocol: any TLS-capable
  * outbound may use them, and VLESS in particular needs REALITY to produce a usable config.
+ *
+ * The PEM-shaped fields are lists of lines, which sing-box joins with newlines.
  */
 const SingboxOutboundCommonTlsTransport = z.object({
   enabled: z.boolean(),
@@ -58,7 +60,10 @@ const SingboxOutboundCommonTlsTransport = z.object({
   insecure: z.boolean().optional(),
   alpn: z.array(z.string()).optional(),
   certificate: z.array(z.string()).optional(),
-  certificate_public_key_sha256: z.string().optional(),
+  /** Base64, and of the public key rather than of the certificate. */
+  certificate_public_key_sha256: z.array(z.string()).optional(),
+  client_certificate: z.array(z.string()).optional(),
+  client_key: z.array(z.string()).optional(),
   reality: z
     .object({
       enabled: z.boolean(),
@@ -69,7 +74,7 @@ const SingboxOutboundCommonTlsTransport = z.object({
   ech: z
     .object({
       enabled: z.boolean(),
-      config: z.string().optional(),
+      config: z.array(z.string()).optional(),
     })
     .optional(),
   utls: z
@@ -164,7 +169,9 @@ export const SingboxOutboundHysteria = SingboxOutboundBaseTLS.extend({
 export const SingboxOutboundHysteria2 = SingboxOutboundBaseTLS.extend({
   ...SingboxNetworkField,
   type: z.literal('hysteria2'),
+  /** Ranges only, written `start:end`; sing-box rejects a bare port number. */
   server_ports: z.array(z.string()).optional(),
+  hop_interval: z.string().optional(),
   up_mbps: z.number().optional(),
   down_mbps: z.number().optional(),
   password: z.string().optional(),
@@ -246,17 +253,23 @@ export const SingboxOutboundShadowTLS = SingboxOutbound.extend({
   tls: SingboxOutboundCommonTlsTransport,
 })
 
-/** Snell. New in sing-box 1.14.0; only protocol versions 4 and 6 are implemented. */
+/**
+ * Snell. New in sing-box 1.14.0, which implements versions 4 and 6; mihomo speaks 1-5, so
+ * only 4 overlaps and only 4 is ever emitted.
+ *
+ * `version` is required — sing-box has no default and reports "snell: missing version". The
+ * obfuscation fields are decoded per version: `obfs_mode`/`obfs_host` belong to 4, and the
+ * `mode` of version 6 is an unknown field here, so it is deliberately absent.
+ */
 export const SingboxOutboundSnell = SingboxOutbound.extend({
   ...SingboxNetworkField,
   type: z.literal('snell'),
-  version: z.union([z.literal(4), z.literal(6)]).optional(),
+  version: z.literal(4),
   psk: z.string(),
   userkey: z.string().optional(),
   reuse: z.boolean().optional(),
-  obfs_mode: z.enum(['none', 'http']).optional(),
+  obfs_mode: z.enum(['none', 'http', 'tls']).optional(),
   obfs_host: z.string().optional(),
-  mode: z.enum(['default', 'unshaped', 'unsafe-raw']).optional(),
 })
 
 export const SingboxOutboundSocks = SingboxOutbound.extend({

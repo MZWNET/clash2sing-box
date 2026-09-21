@@ -15,7 +15,12 @@ const Mbps = z
   .optional()
   .catch(undefined)
 
-/** `"443,8443"`, `"443/8443"` and `"1000-2000"` all describe port sets/ranges. */
+/**
+ * `"443,8443"`, `"443/8443"` and `"1000-2000"` all describe port sets/ranges.
+ *
+ * sing-box takes ranges only, so a lone port widens to `"443:443"` — left bare it fails
+ * with "bad port range: 443".
+ */
 const ServerPorts = z
   .string()
   .transform(ports => {
@@ -23,7 +28,7 @@ const ServerPorts = z
       .replaceAll('/', ',')
       .split(',')
       .filter(Boolean)
-      .map(part => part.replaceAll('-', ':'))
+      .map(part => (part.includes('-') ? part.replaceAll('-', ':') : `${part}:${part}`))
     return parsed.length === 0 ? undefined : parsed
   })
   .optional()
@@ -37,6 +42,7 @@ export const Hysteria2Pipeline = ClashProxyHysteria2.transform((proxy): z.input<
   ...convertDialFields(proxy),
   network: convertNetwork(proxy),
   server_ports: ServerPorts.parse(proxy.ports),
+  hop_interval: proxy['hop-interval'],
   up_mbps: Mbps.parse(proxy.up),
   down_mbps: Mbps.parse(proxy.down),
   password: proxy.password,

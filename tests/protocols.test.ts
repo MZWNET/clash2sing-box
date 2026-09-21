@@ -62,11 +62,18 @@ describe('snell pipeline', () => {
     expect(result.error?.issues[0]?.message).toContain('Snell versions 4 and 6')
   })
 
+  it.each(['http', 'tls'])('carries the %s obfs mode through', mode => {
+    const result = SnellPipeline.parse({ ...base, version: 4, 'obfs-opts': { mode, host: 'bing.com' } })
+
+    expect(result.obfs_mode).toBe(mode)
+    expect(result.obfs_host).toBe('bing.com')
+  })
+
   it('reports an obfs mode sing-box cannot express', () => {
-    const result = SnellPipeline.safeParse({ ...base, version: 4, 'obfs-opts': { mode: 'tls' } })
+    const result = SnellPipeline.safeParse({ ...base, version: 4, 'obfs-opts': { mode: 'shadow-tls' } })
 
     expect(result.success).toBe(false)
-    expect(result.error?.issues[0]?.message).toContain('obfs mode "tls"')
+    expect(result.error?.issues[0]?.message).toContain('obfs mode "shadow-tls"')
   })
 })
 

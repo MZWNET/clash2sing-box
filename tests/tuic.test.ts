@@ -123,7 +123,6 @@ describe('tuic pipeline', () => {
       password: 'pass123',
       heartbeat: '10s',
       zero_rtt_handshake: true,
-      udp_relay_mode: 'native',
       congestion_control: 'cubic',
       udp_over_stream: true,
     })

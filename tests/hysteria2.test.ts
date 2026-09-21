@@ -53,7 +53,7 @@ describe('hysteria2 pipeline', () => {
     expect(result.down_mbps).toBeUndefined()
   })
 
-  it('converts ports: comma-separated "443,8443" → ["443", "8443"]', () => {
+  it('converts ports: comma-separated "443,8443" → ["443:443", "8443:8443"]', () => {
     const proxy = {
       name: 'test',
       server: '1.2.3.4',
@@ -65,7 +65,7 @@ describe('hysteria2 pipeline', () => {
 
     const result = Hysteria2Pipeline.parse(proxy)
 
-    expect(result.server_ports).toEqual(['443', '8443'])
+    expect(result.server_ports).toEqual(['443:443', '8443:8443'])
   })
 
   it('converts ports: dash range "443-8443" → ["443:8443"]', () => {
@@ -83,7 +83,7 @@ describe('hysteria2 pipeline', () => {
     expect(result.server_ports).toEqual(['443:8443'])
   })
 
-  it('converts ports: slash-separated "443/8443" → ["443", "8443"]', () => {
+  it('converts ports: slash-separated "443/8443" → ["443:443", "8443:8443"]', () => {
     const proxy = {
       name: 'test',
       server: '1.2.3.4',
@@ -95,7 +95,7 @@ describe('hysteria2 pipeline', () => {
 
     const result = Hysteria2Pipeline.parse(proxy)
 
-    expect(result.server_ports).toEqual(['443', '8443'])
+    expect(result.server_ports).toEqual(['443:443', '8443:8443'])
   })
 
   it('converts TLS with reality-opts', () => {
@@ -138,26 +138,24 @@ describe('hysteria2 pipeline', () => {
 
     expect(result.tls?.ech).toEqual({
       enabled: true,
-      config: 'ech-config-string',
+      config: ['-----BEGIN ECH CONFIGS-----', 'ech-config-string', '-----END ECH CONFIGS-----'],
     })
   })
 
-  it('converts TLS with fingerprint', () => {
+  // mihomo's `fingerprint` pins the certificate; only `client-fingerprint` names a browser.
+  it('keeps fingerprint out of utls', () => {
     const proxy = {
       name: 'test',
       server: '1.2.3.4',
       port: 443,
       type: 'hysteria2' as const,
       password: 'pass',
-      fingerprint: 'chrome',
+      fingerprint: '7EA15B96CE1E4D4C',
     }
 
     const result = Hysteria2Pipeline.parse(proxy)
 
-    expect(result.tls?.utls).toEqual({
-      enabled: true,
-      fingerprint: 'chrome',
-    })
+    expect(result.tls?.utls).toBeUndefined()
   })
 
   it('converts TLS with client-fingerprint', () => {

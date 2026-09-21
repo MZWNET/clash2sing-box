@@ -66,34 +66,54 @@ describe('convertTLSTransport', () => {
     expect(result.insecure).toBeUndefined()
   })
 
-  it('maps x-clash2singbox-certificate to certificate array', () => {
-    const certs = ['-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----']
-    const result = convertTLSTransport(makeTLSProxy({ 'x-clash2singbox-certificate': certs }))
-    expect(result).toEqual({ enabled: true, certificate: certs })
-  })
-
-  it('maps x-clash2singbox-certificate-public-key-sha256 correctly', () => {
-    const sha256 = 'sha256:abcdef1234567890'
+  it('maps certificate and private-key onto the client pair, split into lines', () => {
     const result = convertTLSTransport(
       makeTLSProxy({
-        'x-clash2singbox-certificate-public-key-sha256': sha256,
+        certificate: '-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----',
+        'private-key': '-----BEGIN PRIVATE KEY-----\nxyz\n-----END PRIVATE KEY-----',
       }),
     )
     expect(result).toEqual({
       enabled: true,
-      certificate_public_key_sha256: sha256,
+      client_certificate: ['-----BEGIN CERTIFICATE-----', 'abc', '-----END CERTIFICATE-----'],
+      client_key: ['-----BEGIN PRIVATE KEY-----', 'xyz', '-----END PRIVATE KEY-----'],
+    })
+  })
+
+  it('emits neither half of the client pair when only one is given', () => {
+    const certificateOnly = convertTLSTransport(makeTLSProxy({ certificate: 'cert' }))
+    const keyOnly = convertTLSTransport(makeTLSProxy({ 'private-key': 'key' }))
+    expect(certificateOnly).toEqual({ enabled: true })
+    expect(keyOnly).toEqual({ enabled: true })
+  })
+
+  it('never routes fingerprint into utls, which only names browsers', () => {
+    const result = convertTLSTransport(makeTLSProxy({ fingerprint: '7EA15B96CE1E4D4C' }))
+    expect(result).toEqual({ enabled: true })
+  })
+
+  it('maps client-fingerprint to utls', () => {
+    const result = convertTLSTransport(makeTLSProxy({ 'client-fingerprint': 'chrome' }))
+    expect(result).toEqual({ enabled: true, utls: { enabled: true, fingerprint: 'chrome' } })
+  })
+
+  it('wraps the ECH config in PEM, which is what sing-box parses', () => {
+    const result = convertTLSTransport(makeTLSProxy({ 'ech-opts': { enable: true, config: 'AEX+DQ==' } }))
+    expect(result).toEqual({
+      enabled: true,
+      ech: { enabled: true, config: ['-----BEGIN ECH CONFIGS-----', 'AEX+DQ==', '-----END ECH CONFIGS-----'] },
     })
   })
 
   it('handles all fields together (full proxy)', () => {
-    const certs = ['cert1', 'cert2']
     const result = convertTLSTransport(
       makeTLSProxy({
         alpn: ['h2'],
         sni: 'full.example.com',
         'skip-cert-verify': true,
-        'x-clash2singbox-certificate': certs,
-        'x-clash2singbox-certificate-public-key-sha256': 'sha256:full',
+        'client-fingerprint': 'chrome',
+        certificate: 'cert',
+        'private-key': 'key',
       }),
     )
     expect(result).toEqual({
@@ -101,8 +121,9 @@ describe('convertTLSTransport', () => {
       alpn: ['h2'],
       server_name: 'full.example.com',
       insecure: true,
-      certificate: certs,
-      certificate_public_key_sha256: 'sha256:full',
+      client_certificate: ['cert'],
+      client_key: ['key'],
+      utls: { enabled: true, fingerprint: 'chrome' },
     })
   })
 })

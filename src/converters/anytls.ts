@@ -14,6 +14,9 @@ export const AnyTlsPipeline = ClashProxyAnyTls.transform((proxy): z.input<typeof
   server: proxy.server,
   server_port: proxy.port,
   ...convertDialFields(proxy),
+  // The one dial field AnyTLS refuses: it multiplexes over a session pool of its own, and
+  // sing-box aborts with "tcp_fast_open is not supported with anytls outbound".
+  tcp_fast_open: undefined,
   password: proxy.password,
   tls: convertTLSTransport(proxy),
   idle_session_check_interval: durationSeconds(proxy['idle-session-check-interval']),

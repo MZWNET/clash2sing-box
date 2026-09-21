@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import type { Options } from './schemas/options.ts'
+import type { OptionFiles, Options } from './schemas/options.ts'
 import { readFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 import { Clerc, defineCommand } from '@clerc/core'
@@ -11,6 +11,8 @@ import { versionPlugin } from '@clerc/plugin-version'
 import * as yaml from 'yaml'
 import pkg from '../package.json' with { type: 'json' }
 import { convert } from './convert.ts'
+import { splitPem } from './converters/shared.ts'
+import { annotateEntryGeo, readCountryDb } from './entry-geo.ts'
 import { merge } from './object.ts'
 import { ClashConfigProbe } from './schemas/clash.ts'
 import { CliOptions } from './schemas/options.ts'
@@ -63,6 +65,18 @@ function parseDocument(content: string, source: string): object {
   return parsed
 }
 
+/** A pinning flag names a PEM file; sing-box wants its lines. */
+async function readCertificate(spec: {
+  match: RegExp
+  path: string
+}): Promise<{ match: RegExp; certificate: string[] }> {
+  const certificate = splitPem(await readFile(spec.path, 'utf-8'))
+  if (certificate === undefined) {
+    throw new Error(`${spec.path} contains no certificate`)
+  }
+  return { match: spec.match, certificate }
+}
+
 export interface ClassifiedInputs {
   clash: object[]
   singbox: object[]
@@ -89,15 +103,36 @@ export function classifyInputs(documents: { source: string; value: object }[]): 
   return { clash, singbox }
 }
 
-export async function convertAction(inputs: string[], output: string | undefined, options: Options): Promise<void> {
+export async function convertAction(
+  inputs: string[],
+  output: string | undefined,
+  options: Options,
+  files: OptionFiles = {},
+): Promise<void> {
   const documents = await Promise.all(
     inputs.map(async source => ({ source, value: parseDocument(await readInput(source), source) })),
   )
 
   const { clash, singbox } = classifyInputs(documents)
-  const { config, warnings } = convert(merge(...clash), merge(...singbox), options)
+  const clashInput = merge(...clash)
+  // Both reads run before `convert`, which stays synchronous and free of file and network
+  // access; geolocation also has to land before the groups filter on the finished names.
+  const { entryGeoDb, tlsCertificate } = files
+  const entryWarnings =
+    entryGeoDb === undefined ? [] : await annotateEntryGeo(clashInput, { locate: await readCountryDb(entryGeoDb) })
+  const resolved: Options =
+    tlsCertificate === undefined
+      ? options
+      : {
+          ...options,
+          outbound: {
+            ...options.outbound,
+            tls: { ...options.outbound?.tls, certificate: await Promise.all(tlsCertificate.map(readCertificate)) },
+          },
+        }
+  const { config, warnings } = convert(clashInput, merge(...singbox), resolved)
 
-  for (const warning of warnings) {
+  for (const warning of [...entryWarnings, ...warnings]) {
     process.stderr.write(`warning: ${warning}\n`)
   }
 
@@ -130,6 +165,19 @@ const convertCommand = defineCommand(
         type: String,
         description: 'The name of the domain resolver, required for setting resolver strategy',
       },
+      outboundEntryGeoDb: {
+        type: String,
+        description: "Path to a MaxMind Country mmdb; appends |IN-<CC> for each proxy's entry address",
+      },
+      outboundGroup: {
+        type: [String],
+        description: 'An extra proxy group as "tag=regex", matched against outbound tags; repeatable',
+      },
+      outboundNoUrltest: {
+        type: [String],
+        description:
+          'Tag(s) to keep out of every URLTest group, selectable by hand only; repeatable or comma-separated',
+      },
       // Deliberately a string: `CliOptions` stays the one place that turns text into a
       // number, so there is a single coercion and a single error message.
       outboundSelectorDefault: {
@@ -139,6 +187,14 @@ const convertCommand = defineCommand(
       outboundSelectorTag: {
         type: [String],
         description: 'The name(s) of the selector outbound(s); repeatable, or comma-separated',
+      },
+      outboundTlsCertificate: {
+        type: [String],
+        description: 'Pin a certificate as "regex=path", matched against outbound tags; repeatable',
+      },
+      outboundTlsCertificatePublicKeySha256: {
+        type: [String],
+        description: 'Pin a public key as "regex=base64", matched against outbound tags; repeatable',
       },
     },
   },
@@ -151,7 +207,7 @@ const convertCommand = defineCommand(
       const issue = parsed.error.issues[0]
       throw new Error(`${toFlag(String(issue?.path[0] ?? 'option'))} ${issue?.message ?? 'is invalid'}`)
     }
-    await convertAction(ctx.parameters.input, parsed.data.output, parsed.data.options)
+    await convertAction(ctx.parameters.input, parsed.data.output, parsed.data.options, parsed.data.files)
   },
 )
 

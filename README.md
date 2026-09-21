@@ -63,22 +63,27 @@ and `dev: tap` is reported as unsupported since sing-box provides TUN only.
 
 #### Options
 
-| Name                               | Status | Note                                                                                  |
-| ---------------------------------- | ------ | ------------------------------------------------------------------------------------- |
-| Dial fields                        | O      | `udp`/`tfo`/`mptcp`/`interface-name`/`routing-mark`/`dialer-proxy`, on every protocol |
-| Multiplex                          | O      | `smux` → `multiplex` (incl. `brutal-opts`), on `ss`/`trojan`/`vmess`/`vless`          |
-| V2Ray transport                    | O      | `ws`/`h2`/`http`/`grpc`/`httpupgrade`, on `vmess`/`vless`/`trojan`                    |
-| REALITY                            | O      | From `reality-opts`, on every TLS-capable protocol                                    |
-| ECH                                | O      | From `ech-opts`                                                                       |
-| uTLS fingerprint                   | O      | From `client-fingerprint`, falling back to `fingerprint`                              |
-| UDP packet encoding                | O      | `packet-encoding` → `packet_encoding` (`packetaddr`/`xudp`)                           |
-| IP Version                         | ?      | `ip-version` → `domain_resolver.strategy`, needs `--outbound-domainresolver-tag`      |
-| TLS Certificate Pinning            | ?      | Implemented via proprietary option `x-clash2singbox-certificate`                      |
-| TLS Certificate Public Key Pinning | ?      | Implemented via proprietary option `x-clash2singbox-certificate-public-key-sha256`    |
+| Name                | Status | Note                                                                                  |
+| ------------------- | ------ | ------------------------------------------------------------------------------------- |
+| Dial fields         | O      | `udp`/`tfo`/`mptcp`/`interface-name`/`routing-mark`/`dialer-proxy`, on every protocol |
+| Multiplex           | O      | `smux` → `multiplex` (incl. `brutal-opts`), on `ss`/`trojan`/`vmess`/`vless`          |
+| V2Ray transport     | O      | `ws`/`h2`/`http`/`grpc`/`httpupgrade`, on `vmess`/`vless`/`trojan`                    |
+| REALITY             | O      | From `reality-opts`, on every TLS-capable protocol                                    |
+| ECH                 | O      | `ech-opts.config` → `ech.config`, rewrapped as PEM                                    |
+| uTLS fingerprint    | O      | From `client-fingerprint`                                                             |
+| Client certificate  | O      | `certificate` + `private-key` → `client_certificate` + `client_key`                   |
+| UDP packet encoding | O      | `packet-encoding` → `packet_encoding` (`packetaddr`/`xudp`)                           |
+| IP Version          | ?      | `ip-version` → `domain_resolver.strategy`, needs `--outbound-domainresolver-tag`      |
+| Certificate pinning | X      | `fingerprint` hashes the certificate, sing-box hashes the public key — see below      |
 
 Targets the sing-box `testing` branch (1.14.0-alpha). `domain_strategy` is deliberately
 not emitted: it was deprecated in 1.12.0 and removed in 1.14.0 in favour of
 `domain_resolver`.
+
+mihomo's `fingerprint` is not a browser profile — that is `client-fingerprint` — but the
+SHA-256 of the whole server certificate. sing-box pins the SHA-256 of the _public key_
+instead, so the two hashes are not interchangeable and `fingerprint` is dropped with a
+warning. Pin from the command line instead — see below.
 
 ## Usage
 
@@ -95,10 +100,15 @@ Parameters
   <input...>  Array<string>  Input files or http(s) URLs
 
 Flags
-  --output, -o                   String         Output file path (default: stdout)
-  --outbound-domainresolver-tag  String         The name of the domain resolver, required for setting resolver strategy
-  --outbound-selector-default    String         Use the n-th outbound as the default in the selector outbound (integer)
-  --outbound-selector-tag        Array<String>  The name(s) of the selector outbound(s); repeatable, or comma-separated  [default: []]
+  --output, -o                                  String         Output file path (default: stdout)
+  --outbound-domainresolver-tag                 String         The name of the domain resolver, required for setting resolver strategy
+  --outbound-entry-geo-db                       String         Path to a MaxMind Country mmdb; appends |IN-<CC> for each proxy's entry address
+  --outbound-group                              Array<String>  An extra proxy group as "tag=regex", matched against outbound tags; repeatable  [default: []]
+  --outbound-no-urltest                         Array<String>  Tag(s) to keep out of every URLTest group, selectable by hand only; repeatable or comma-separated  [default: []]
+  --outbound-selector-default                   String         Use the n-th outbound as the default in the selector outbound (integer)
+  --outbound-selector-tag                       Array<String>  The name(s) of the selector outbound(s); repeatable, or comma-separated  [default: []]
+  --outbound-tls-certificate                    Array<String>  Pin a certificate as "regex=path", matched against outbound tags; repeatable  [default: []]
+  --outbound-tls-certificate-public-key-sha256  Array<String>  Pin a public key as "regex=base64", matched against outbound tags; repeatable  [default: []]
 
 Global Flags
   --help, -h     Boolean  Show help               [default: false]
@@ -120,6 +130,105 @@ $ clash2sing-box convert https://example.com/subscription.yaml ./base.json -o ./
 $ clash2sing-box convert ./tests/clash.yaml --outbound-selector-tag proxy,streaming
 $ clash2sing-box convert ./tests/clash.yaml --outbound-selector-tag proxy --outbound-selector-tag streaming
 ```
+
+### Proxy groups
+
+Every conversion emits a `proxy` selector over everything and a `urltest-proxy` racing the
+latency-testable subset. `--outbound-group` adds groups on top, each collecting the
+outbounds whose **tag** the regex accepts:
+
+```shell
+$ clash2sing-box convert ./nodes.yaml \
+    --outbound-group 'hk=(?<!-)\bHK\b' \
+    --outbound-group 'netflix=\bNF\b'
+```
+
+The flag is repeatable and is **not** comma-split, because a pattern may contain a comma.
+It splits on the first `=`, so a pattern may contain one of those too. Patterns are
+compiled without flags, which makes them case-sensitive and keeps `test()` from carrying
+`lastIndex` between candidates.
+
+Two behaviours are worth knowing before you point route rules at a group:
+
+- A group whose regex matches nothing is still emitted, as a selector aliasing
+  `urltest-proxy`. Deleting it would leave your route rules referencing an outbound that is
+  not there, and sing-box rejects both that and a group with an empty member list.
+- Groups appear in the `proxy` selector, ahead of the individual nodes, but never inside
+  `urltest-proxy` — a race between races would skew the latency comparison the same way
+  `direct` would.
+
+A tag that collides with a node, a selector or `urltest-proxy` is an error rather than a
+config sing-box will reject later.
+
+`--outbound-no-urltest` keeps a tag selectable but out of every URLTest group, including
+named ones — "not latency-testable" is a property of the outbound, not of one group:
+
+```shell
+$ clash2sing-box convert ./nodes.yaml ./warp-endpoint.json --outbound-no-urltest warp
+```
+
+This is for an outbound you pick deliberately rather than by latency. A WARP endpoint is
+the usual case: it is fast enough to keep winning a race it has no business being in, and
+whatever wins `urltest-proxy` is where unmatched traffic goes. Unlike `direct` and `block`
+— excluded by type, because they structurally break a race — this is a judgement about a
+specific node, so it is named by tag. A tag matching no outbound is reported as a warning
+rather than ignored, since the alternative is a silent typo.
+
+### Certificate pinning
+
+mihomo pins with `fingerprint`, hashing the whole certificate; sing-box hashes the public
+key. Neither hash can be computed from the other, so pinning is named on the command line
+rather than converted. Both flags take `regex=value`, with the regex matched against
+outbound tags, and both are repeatable:
+
+```shell
+$ clash2sing-box convert ./nodes.yaml \
+    --outbound-tls-certificate '^home-=./my-ca.pem' \
+    --outbound-tls-certificate-public-key-sha256 '^home-=uWYFLt/wd56CEm3/5oVkJHVMeTp7NDEPxWxGUrIqbmw='
+```
+
+The public key hash is base64, as `openssl x509 -in cert.pem -pubkey -noout | openssl pkey
+-pubin -outform der | openssl dgst -sha256 -binary | base64` prints it.
+
+Unlike `--outbound-group`, the regex is on the **left**, so write a literal `=` inside it as
+`\x3d`: the split is on the first `=` either way, which keeps the value free to contain one
+— base64 padding always does, and a path may.
+
+Only outbounds that already carry TLS are eligible; sing-box rejects a `tls` block outright
+on Shadowsocks, SOCKS, SSH and Snell. A pattern matching nothing is reported as a warning.
+
+### Entry geolocation
+
+Subscription checkers rename nodes after the address traffic **exits** from — the half you
+cannot read off the config. The **entry** is the `server` field, sitting right there
+ungeolocated, and the two differ whenever a node relays. `--outbound-entry-geo-db` fills
+that half in, appending `|IN-<CC>` to each Clash proxy's name:
+
+```
+🇭🇰HK¹⁺_3|12.3MB/s|GPT⁺|YT|NF|0%|IN-JP
+└──exit──┘                        └entry┘
+```
+
+Point it at any MaxMind Country `.mmdb`. Hostnames are resolved once each, in parallel,
+with a short DNS timeout; a node whose entry cannot be located keeps its original name and
+converts as usual, with a warning on stderr.
+
+The hyphen in `IN-JP` is deliberate: it is what keeps an entry tag out of a region group
+written as `(?<!-)\bJP\b`, the same guard that already skips exit-side qualifiers like
+`TK-US` or `-US⁰`.
+
+Only Clash input is annotated. sing-box fragments are hand-written, so their tags already
+say what you meant, and rewriting them would mean chasing every `detour` and group
+membership pointing at the old tag.
+
+A record's `country` wins where present, falling back to `registered_country`. Anycast
+ranges — Cloudflare's, and plenty of entry hosts sit behind those — carry no `country` at
+all and would otherwise go unlabelled; but the two disagree often enough that the order
+matters, an Alibaba Hong Kong address reading `country: HK, registered_country: US`.
+
+Caveats: lookups go through the system resolver, so with a TUN interface up a hostname
+resolves the way your proxy sees it; only the first address of a multi-record host is used;
+and a Country database gives you a country, not a city or an ASN.
 
 This is a command line tool, not a library: it exposes no importable entry point, and
 everything under `src/` is an internal free to change between versions.

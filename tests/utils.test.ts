@@ -32,6 +32,10 @@ import {
   minimalVmessProxy,
 } from './fixtures.ts'
 
+function outboundNamed(config: SingboxConfig, tag: string): object {
+  return config.outbounds!.find(outbound => outbound.tag === tag)!
+}
+
 describe('merge()', () => {
   // `deepmerge` throws on an empty argument list, which the CLI hits whenever it is given
   // only sing-box inputs and no Clash ones.
@@ -711,6 +715,47 @@ describe('convert() resilience', () => {
     })
 
     expect(warnings).toEqual(['Normalized VLESS flow "xtls-rprx-direct" to "xtls-rprx-vision" for proxy "vless-flow"'])
+  })
+
+  // mihomo pins the certificate and sing-box pins the public key, so nothing converts.
+  it('warns that a pinning fingerprint is dropped', () => {
+    const { config, warnings } = convert({
+      proxies: [
+        { name: 'pinned', type: 'trojan', server: '1.2.3.4', port: 443, password: 'pw', fingerprint: '7EA15B96' },
+      ],
+    })
+
+    expect(warnings[0]).toContain('Dropped "fingerprint" from proxy "pinned"')
+    expect(outboundNamed(config, 'pinned')).not.toHaveProperty('tls.utls')
+  })
+
+  it('warns that udp-relay-mode is dropped alongside udp-over-stream', () => {
+    const { warnings } = convert({
+      proxies: [
+        {
+          name: 'tuic-both',
+          type: 'tuic',
+          server: '1.2.3.4',
+          port: 443,
+          uuid: 'aaaaaaaa-bbbb-cccc-dddd-111111111111',
+          'udp-relay-mode': 'native',
+          'udp-over-stream': true,
+        },
+      ],
+    })
+
+    expect(warnings).toEqual([
+      'Dropped "udp-relay-mode" from proxy "tuic-both": sing-box refuses it alongside udp-over-stream',
+    ])
+  })
+
+  it('warns that tfo is dropped on AnyTLS', () => {
+    const { config, warnings } = convert({
+      proxies: [{ name: 'anytls-tfo', type: 'anytls', server: '1.2.3.4', port: 443, password: 'pw', tfo: true }],
+    })
+
+    expect(warnings).toEqual(['Dropped "tfo" from proxy "anytls-tfo": sing-box refuses it on the AnyTLS outbound'])
+    expect(outboundNamed(config, 'anytls-tfo')).not.toHaveProperty('tcp_fast_open')
   })
 
   it('returns an empty outbound list rather than throwing on a config with no proxies', () => {

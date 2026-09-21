@@ -18,9 +18,10 @@ export const SnellPipeline = ClashProxySnell.transform((proxy, ctx): z.input<typ
 
   const obfs = proxy['obfs-opts']
   const mode = obfs?.mode
-  // sing-box's Snell v4 obfuscation is `none` or `http`; mihomo also offers
-  // tls/shadow-tls/restls/jls, which have no equivalent here.
-  if (mode !== undefined && mode !== 'http' && mode !== 'none') {
+  // sing-box's Snell v4 obfuscation is `none`, `http` or `tls`; mihomo also offers
+  // shadow-tls/restls/jls, which have no equivalent here.
+  const obfuscated = mode === 'http' || mode === 'tls'
+  if (mode !== undefined && mode !== 'none' && !obfuscated) {
     ctx.addIssue({
       code: 'custom',
       message: `sing-box does not support the Snell obfs mode "${mode}"`,
@@ -38,7 +39,7 @@ export const SnellPipeline = ClashProxySnell.transform((proxy, ctx): z.input<typ
     version: 4 as const,
     psk: proxy.psk,
     reuse: proxy.reuse,
-    obfs_mode: mode === 'http' ? ('http' as const) : undefined,
-    obfs_host: mode === 'http' ? obfs?.host : undefined,
+    obfs_mode: obfuscated ? mode : undefined,
+    obfs_host: obfuscated ? obfs?.host : undefined,
   }
 }).pipe(SingboxOutboundSnell)

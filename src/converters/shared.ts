@@ -75,20 +75,44 @@ export function convertMultiplex(smux: ClashSmuxInput | undefined): SingboxMulti
   }
 }
 
+/** sing-box takes PEM as a list of lines and joins them back with newlines. */
+export function splitPem(pem: string | undefined): string[] | undefined {
+  const lines = pem?.split('\n').filter(line => line.trim() !== '')
+  return lines === undefined || lines.length === 0 ? undefined : lines
+}
+
+/**
+ * mihomo carries the ECH config list as bare base64, sing-box as PEM.
+ *
+ * Handing the base64 over unwrapped is accepted by the JSON decoder and then fails at
+ * startup with "invalid ECH configs pem".
+ */
+function echConfig(config: string | undefined): string[] | undefined {
+  const base64 = config?.trim()
+  return base64 === undefined || base64 === ''
+    ? undefined
+    : ['-----BEGIN ECH CONFIGS-----', base64, '-----END ECH CONFIGS-----']
+}
+
 /**
  * Build the sing-box TLS transport from a Clash proxy.
  *
  * REALITY, ECH and uTLS are handled here rather than per-protocol: previously they were
  * only wired up in the Hysteria2 converter — which cannot use REALITY at all, since it is
  * QUIC-based — while VLESS, the protocol that actually needs them, silently dropped them.
+ *
+ * Two mihomo fields look like they belong here and do not. `fingerprint` is certificate
+ * pinning — mihomo hashes the whole certificate, sing-box hashes the public key, so the two
+ * are not interchangeable and `convert` reports it as dropped. `certificate`/`private-key`
+ * are the client half of a mutual-TLS pair, not a CA to trust.
  */
 export function convertTLSTransport(proxy: ClashProxyBaseTLSInput): SingboxOutboundCommonTls {
   const realityOpts = proxy['reality-opts']
   const echOpts = proxy['ech-opts']
-  // `client-fingerprint` wins over the older `fingerprint` when both are present.
-  const fingerprint = proxy['client-fingerprint'] ?? proxy.fingerprint
-  const certificate =
-    proxy['x-clash2singbox-certificate'] ?? (proxy.certificate === undefined ? undefined : [proxy.certificate])
+  const clientCertificate = splitPem(proxy.certificate)
+  const clientKey = splitPem(proxy['private-key'])
+  // sing-box refuses a lone half: "client certificate and client key must be provided together".
+  const mutualTLS = clientCertificate !== undefined && clientKey !== undefined
 
   return {
     enabled: true,
@@ -96,14 +120,17 @@ export function convertTLSTransport(proxy: ClashProxyBaseTLSInput): SingboxOutbo
     server_name: proxy.sni ?? proxy.servername,
     insecure: proxy['skip-cert-verify'] === true ? true : undefined,
     alpn: proxy.alpn,
-    certificate,
-    certificate_public_key_sha256: proxy['x-clash2singbox-certificate-public-key-sha256'],
+    client_certificate: mutualTLS ? clientCertificate : undefined,
+    client_key: mutualTLS ? clientKey : undefined,
     reality:
       realityOpts === undefined
         ? undefined
         : { enabled: true, public_key: realityOpts['public-key'], short_id: realityOpts['short-id'] },
-    ech: echOpts?.enable === true ? { enabled: true, config: echOpts.config } : undefined,
-    utls: fingerprint === undefined ? undefined : { enabled: true, fingerprint },
+    ech: echOpts?.enable === true ? { enabled: true, config: echConfig(echOpts.config) } : undefined,
+    utls:
+      proxy['client-fingerprint'] === undefined
+        ? undefined
+        : { enabled: true, fingerprint: proxy['client-fingerprint'] },
   }
 }
 
