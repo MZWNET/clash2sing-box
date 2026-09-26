@@ -4,12 +4,12 @@ import type {
   SingboxAnyEndpoint,
   SingboxAnyOutbound,
   SingboxConfig,
-  SingboxOutboundCommonTls,
   SingboxOutboundURLTest,
 } from './schemas/singbox.ts'
 import type { z } from 'zod'
 import { primaryType } from './converters/envelope.ts'
 import { ProxyToOutbound } from './converters/index.ts'
+import { certificateSha256 } from './converters/shared.ts'
 import { VLESS_FLOW } from './converters/vless.ts'
 import { merge, omitUndefined } from './object.ts'
 import { Clash, ClashProxyRaw } from './schemas/clash.ts'
@@ -96,9 +96,6 @@ export function convert(clashInput: unknown, singboxInput: unknown = {}, options
     allEndpoints.push(...envelope.endpoints)
     offer(envelope.tag, primaryType(envelope))
   }
-
-  // Runs before the sing-box input is adopted, so pinning only ever touches what we built.
-  warnings.push(...applyTLSPinning(allOutbounds, options))
 
   // 2. Carry over outbounds and endpoints supplied by the sing-box input.
   const singbox = SingboxConfigSchema.safeParse(singboxInput)
@@ -215,9 +212,9 @@ function normalizations(proxy: ClashProxyIdentity): string[] {
   if (proxy.type === 'vless' && proxy.flow !== undefined && proxy.flow !== VLESS_FLOW) {
     notes.push(`Normalized VLESS flow "${proxy.flow}" to "${VLESS_FLOW}" for proxy "${proxy.name}"`)
   }
-  if (proxy.fingerprint !== undefined) {
+  if (proxy.fingerprint !== undefined && certificateSha256(proxy.fingerprint) === undefined) {
     notes.push(
-      `Dropped "fingerprint" from proxy "${proxy.name}": mihomo pins the certificate and sing-box pins the public key, so the two hashes are not interchangeable. Use --outbound-tls-certificate or --outbound-tls-certificate-public-key-sha256`,
+      `Dropped "fingerprint" from proxy "${proxy.name}": expected a hex SHA-256 certificate digest, which is what mihomo pins on — a browser name belongs in "client-fingerprint"`,
     )
   }
   if (proxy['udp-over-stream'] === true && proxy['udp-relay-mode'] !== undefined) {
@@ -228,52 +225,6 @@ function normalizations(proxy: ClashProxyIdentity): string[] {
   }
 
   return notes
-}
-
-/**
- * Pin certificates onto the outbounds whose tag matches, which is how pinning is expressed
- * here: mihomo's own `fingerprint` hashes the certificate where sing-box hashes the public
- * key, so there is nothing to convert.
- *
- * Only entries already carrying a `tls` block are eligible — sing-box rejects `tls` outright
- * on Shadowsocks, SOCKS, SSH and Snell, and on a Vmess or HTTP proxy that did not ask for it.
- */
-function applyTLSPinning(outbounds: SingboxAnyOutbound[], options: Options): string[] {
-  const certificates = options.outbound?.tls?.certificate ?? []
-  const hashes = options.outbound?.tls?.certificatePublicKeySha256 ?? []
-  if (certificates.length === 0 && hashes.length === 0) {
-    return []
-  }
-
-  const warnings: string[] = []
-  const secured = outbounds.filter(
-    (outbound): outbound is SingboxAnyOutbound & { tls: SingboxOutboundCommonTls } =>
-      'tls' in outbound && outbound.tls !== undefined,
-  )
-
-  /** A pattern matching nothing is nearly always a typo, so every spec reports either way. */
-  function pin(match: RegExp, what: string, onto: (tls: SingboxOutboundCommonTls) => void): void {
-    const targets = secured.filter(outbound => match.test(outbound.tag))
-    for (const { tls } of targets) {
-      onto(tls)
-    }
-    if (targets.length === 0) {
-      warnings.push(`No TLS-capable outbound matches "${match.source}" to pin ${what} onto`)
-    }
-  }
-
-  for (const { match, certificate } of certificates) {
-    pin(match, 'a certificate', tls => {
-      tls.certificate = certificate
-    })
-  }
-  for (const { match, hash } of hashes) {
-    pin(match, 'a public key', tls => {
-      tls.certificate_public_key_sha256 = [...(tls.certificate_public_key_sha256 ?? []), hash]
-    })
-  }
-
-  return warnings
 }
 
 /**

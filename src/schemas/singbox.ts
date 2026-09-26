@@ -60,7 +60,12 @@ const SingboxOutboundCommonTlsTransport = z.object({
   insecure: z.boolean().optional(),
   alpn: z.array(z.string()).optional(),
   certificate: z.array(z.string()).optional(),
-  /** Base64, and of the public key rather than of the certificate. */
+  /**
+   * Base64 SHA-256 digests. `certificate_sha256` covers the whole certificate — the same
+   * thing mihomo's `fingerprint` hashes — while the other covers only the public key.
+   * Both conflict with `certificate`/`certificate_path`, which this converter never emits.
+   */
+  certificate_sha256: z.array(z.string()).optional(),
   certificate_public_key_sha256: z.array(z.string()).optional(),
   client_certificate: z.array(z.string()).optional(),
   client_key: z.array(z.string()).optional(),

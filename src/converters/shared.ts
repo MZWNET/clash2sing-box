@@ -4,6 +4,7 @@ import type {
   SingboxOutboundCommonTls,
   SingboxOutboundCommonTransport,
 } from '../schemas/singbox.ts'
+import { Buffer } from 'node:buffer'
 
 /**
  * The dial options mihomo puts on every proxy. Declared structurally so that `direct`
@@ -76,9 +77,27 @@ export function convertMultiplex(smux: ClashSmuxInput | undefined): SingboxMulti
 }
 
 /** sing-box takes PEM as a list of lines and joins them back with newlines. */
-export function splitPem(pem: string | undefined): string[] | undefined {
+function splitPem(pem: string | undefined): string[] | undefined {
   const lines = pem?.split('\n').filter(line => line.trim() !== '')
   return lines === undefined || lines.length === 0 ? undefined : lines
+}
+
+/** A SHA-256 digest as mihomo writes it: hex, upper or lower case, colons optional. */
+const CERTIFICATE_FINGERPRINT = /^(?:[\da-f]{2}:?){32}$/i
+
+/**
+ * Both sides pin on the SHA-256 of the whole certificate, so only the encoding differs:
+ * mihomo writes hex, sing-box reads base64.
+ *
+ * Anything that is not that digest — a browser name left over from the days when
+ * `fingerprint` meant uTLS, a truncated hash — is no pin at all, and mihomo rejects it too.
+ * `convert` reports the drop.
+ */
+export function certificateSha256(fingerprint: string | undefined): string[] | undefined {
+  if (fingerprint === undefined || !CERTIFICATE_FINGERPRINT.test(fingerprint.trim())) {
+    return undefined
+  }
+  return [Buffer.from(fingerprint.trim().replaceAll(':', ''), 'hex').toString('base64')]
 }
 
 /**
@@ -101,10 +120,8 @@ function echConfig(config: string | undefined): string[] | undefined {
  * only wired up in the Hysteria2 converter — which cannot use REALITY at all, since it is
  * QUIC-based — while VLESS, the protocol that actually needs them, silently dropped them.
  *
- * Two mihomo fields look like they belong here and do not. `fingerprint` is certificate
- * pinning — mihomo hashes the whole certificate, sing-box hashes the public key, so the two
- * are not interchangeable and `convert` reports it as dropped. `certificate`/`private-key`
- * are the client half of a mutual-TLS pair, not a CA to trust.
+ * `certificate`/`private-key` are the client half of a mutual-TLS pair, not a CA to trust —
+ * the name is misleading on the mihomo side.
  */
 export function convertTLSTransport(proxy: ClashProxyBaseTLSInput): SingboxOutboundCommonTls {
   const realityOpts = proxy['reality-opts']
@@ -120,6 +137,7 @@ export function convertTLSTransport(proxy: ClashProxyBaseTLSInput): SingboxOutbo
     server_name: proxy.sni ?? proxy.servername,
     insecure: proxy['skip-cert-verify'] === true ? true : undefined,
     alpn: proxy.alpn,
+    certificate_sha256: certificateSha256(proxy.fingerprint),
     client_certificate: mutualTLS ? clientCertificate : undefined,
     client_key: mutualTLS ? clientKey : undefined,
     reality:

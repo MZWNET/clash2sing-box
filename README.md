@@ -74,16 +74,16 @@ and `dev: tap` is reported as unsupported since sing-box provides TUN only.
 | Client certificate  | O      | `certificate` + `private-key` → `client_certificate` + `client_key`                   |
 | UDP packet encoding | O      | `packet-encoding` → `packet_encoding` (`packetaddr`/`xudp`)                           |
 | IP Version          | ?      | `ip-version` → `domain_resolver.strategy`, needs `--outbound-domainresolver-tag`      |
-| Certificate pinning | X      | `fingerprint` hashes the certificate, sing-box hashes the public key — see below      |
+| Certificate pinning | O      | `fingerprint` → `certificate_sha256`, re-encoded from hex to base64                   |
 
-Targets the sing-box `testing` branch (1.14.0-alpha). `domain_strategy` is deliberately
+Targets the sing-box `testing` branch (1.15.0-alpha). `domain_strategy` is deliberately
 not emitted: it was deprecated in 1.12.0 and removed in 1.14.0 in favour of
 `domain_resolver`.
 
 mihomo's `fingerprint` is not a browser profile — that is `client-fingerprint` — but the
-SHA-256 of the whole server certificate. sing-box pins the SHA-256 of the _public key_
-instead, so the two hashes are not interchangeable and `fingerprint` is dropped with a
-warning. Pin from the command line instead — see below.
+SHA-256 of the whole server certificate. sing-box hashes the same thing in
+`certificate_sha256`, new in 1.15.0-alpha.8, so the two differ only in encoding and the
+value carries over. A `fingerprint` that is not a hex digest is dropped with a warning.
 
 ## Usage
 
@@ -100,15 +100,13 @@ Parameters
   <input...>  Array<string>  Input files or http(s) URLs
 
 Flags
-  --output, -o                                  String         Output file path (default: stdout)
-  --outbound-domainresolver-tag                 String         The name of the domain resolver, required for setting resolver strategy
-  --outbound-entry-geo-db                       String         Path to a MaxMind Country mmdb; appends |IN-<CC> for each proxy's entry address
-  --outbound-group                              Array<String>  An extra proxy group as "tag=regex", matched against outbound tags; repeatable  [default: []]
-  --outbound-no-urltest                         Array<String>  Tag(s) to keep out of every URLTest group, selectable by hand only; repeatable or comma-separated  [default: []]
-  --outbound-selector-default                   String         Use the n-th outbound as the default in the selector outbound (integer)
-  --outbound-selector-tag                       Array<String>  The name(s) of the selector outbound(s); repeatable, or comma-separated  [default: []]
-  --outbound-tls-certificate                    Array<String>  Pin a certificate as "regex=path", matched against outbound tags; repeatable  [default: []]
-  --outbound-tls-certificate-public-key-sha256  Array<String>  Pin a public key as "regex=base64", matched against outbound tags; repeatable  [default: []]
+  --output, -o                   String         Output file path (default: stdout)
+  --outbound-domainresolver-tag  String         The name of the domain resolver, required for setting resolver strategy
+  --outbound-entry-geo-db        String         Path to a MaxMind Country mmdb; appends |IN-<CC> for each proxy's entry address
+  --outbound-group               Array<String>  An extra proxy group as "tag=regex", matched against outbound tags; repeatable  [default: []]
+  --outbound-no-urltest          Array<String>  Tag(s) to keep out of every URLTest group, selectable by hand only; repeatable or comma-separated  [default: []]
+  --outbound-selector-default    String         Use the n-th outbound as the default in the selector outbound (integer)
+  --outbound-selector-tag        Array<String>  The name(s) of the selector outbound(s); repeatable, or comma-separated  [default: []]
 
 Global Flags
   --help, -h     Boolean  Show help               [default: false]
@@ -173,29 +171,6 @@ whatever wins `urltest-proxy` is where unmatched traffic goes. Unlike `direct` a
 — excluded by type, because they structurally break a race — this is a judgement about a
 specific node, so it is named by tag. A tag matching no outbound is reported as a warning
 rather than ignored, since the alternative is a silent typo.
-
-### Certificate pinning
-
-mihomo pins with `fingerprint`, hashing the whole certificate; sing-box hashes the public
-key. Neither hash can be computed from the other, so pinning is named on the command line
-rather than converted. Both flags take `regex=value`, with the regex matched against
-outbound tags, and both are repeatable:
-
-```shell
-$ clash2sing-box convert ./nodes.yaml \
-    --outbound-tls-certificate '^home-=./my-ca.pem' \
-    --outbound-tls-certificate-public-key-sha256 '^home-=uWYFLt/wd56CEm3/5oVkJHVMeTp7NDEPxWxGUrIqbmw='
-```
-
-The public key hash is base64, as `openssl x509 -in cert.pem -pubkey -noout | openssl pkey
--pubin -outform der | openssl dgst -sha256 -binary | base64` prints it.
-
-Unlike `--outbound-group`, the regex is on the **left**, so write a literal `=` inside it as
-`\x3d`: the split is on the first `=` either way, which keeps the value free to contain one
-— base64 padding always does, and a path may.
-
-Only outbounds that already carry TLS are eligible; sing-box rejects a `tls` block outright
-on Shadowsocks, SOCKS, SSH and Snell. A pattern matching nothing is reported as a warning.
 
 ### Entry geolocation
 

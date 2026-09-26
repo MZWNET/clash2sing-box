@@ -26,18 +26,6 @@ export interface Options {
       default?: number
       tag?: string[]
     }
-    /**
-     * Certificate pinning for the outbounds whose tag `match` accepts.
-     *
-     * mihomo pins with `fingerprint`, hashing the whole certificate, while sing-box hashes
-     * the public key — the two are not interchangeable, so pinning is named here rather
-     * than converted. `certificate` holds PEM lines, already read: `convert` never touches
-     * the filesystem.
-     */
-    tls?: {
-      certificate?: { match: RegExp; certificate: string[] }[]
-      certificatePublicKeySha256?: { match: RegExp; hash: string }[]
-    }
   }
 }
 
@@ -51,15 +39,6 @@ export interface Options {
 function splitTags(tags: string[] | undefined): string[] | undefined {
   const split = tags?.flatMap(tag => tag.split(',')).filter(tag => tag !== '')
   return split === undefined || split.length === 0 ? undefined : split
-}
-
-/**
- * Options naming a file rather than carrying a value. The CLI reads them, which is what
- * keeps `convert` synchronous and free of file and network access.
- */
-export interface OptionFiles {
-  entryGeoDb?: string | undefined
-  tlsCertificate?: { match: RegExp; path: string }[] | undefined
 }
 
 interface Pair {
@@ -104,27 +83,6 @@ function compilePattern(pattern: string, entry: string, ctx: z.RefinementCtx): R
     ctx.addIssue({ code: 'custom', message: `has an invalid regex "${pattern}" in "${entry}": ${reason}` })
     return undefined
   }
-}
-
-/** `regex=value`, where the regex is matched against outbound tags. */
-function matchedValues(
-  entries: string[] | undefined,
-  shape: string,
-  ctx: z.RefinementCtx,
-): { match: RegExp; value: string }[] | undefined {
-  const pairs = splitPairs(entries, shape, ctx)
-  if (pairs === undefined) {
-    return undefined
-  }
-
-  const specs: { match: RegExp; value: string }[] = []
-  for (const { left, right, entry } of pairs) {
-    const match = compilePattern(left, entry, ctx)
-    if (match !== undefined) {
-      specs.push({ match, value: right })
-    }
-  }
-  return specs
 }
 
 /**
@@ -177,22 +135,11 @@ export const CliOptions = z
       .transform(Number)
       .optional(),
     outboundSelectorTag: z.array(z.string()).optional().transform(splitTags),
-    outboundTlsCertificate: z
-      .array(z.string())
-      .optional()
-      .transform((entries, ctx) => matchedValues(entries, 'regex=path', ctx)),
-    outboundTlsCertificatePublicKeySha256: z
-      .array(z.string())
-      .optional()
-      .transform((entries, ctx) => matchedValues(entries, 'regex=base64', ctx)),
   })
   .transform(raw => ({
     output: raw.output,
-    // These name files, so they stay out of `Options` and off `convert`'s pure path.
-    files: {
-      entryGeoDb: raw.outboundEntryGeoDb,
-      tlsCertificate: raw.outboundTlsCertificate?.map(({ match, value }) => ({ match, path: value })),
-    } satisfies OptionFiles,
+    // Entry geolocation is I/O, so it stays out of `Options` and off `convert`'s pure path.
+    entryGeoDb: raw.outboundEntryGeoDb,
     // `convert` reaches every field through optional chaining, so these can be built
     // unconditionally: a flag the user did not pass simply stays `undefined`.
     options: {
@@ -201,12 +148,6 @@ export const CliOptions = z
         group: raw.outboundGroup,
         noUrltest: raw.outboundNoUrltest,
         selector: { default: raw.outboundSelectorDefault, tag: raw.outboundSelectorTag },
-        tls: {
-          certificatePublicKeySha256: raw.outboundTlsCertificatePublicKeySha256?.map(({ match, value }) => ({
-            match,
-            hash: value,
-          })),
-        },
       },
     } satisfies Options,
   }))

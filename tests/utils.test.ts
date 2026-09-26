@@ -717,16 +717,26 @@ describe('convert() resilience', () => {
     expect(warnings).toEqual(['Normalized VLESS flow "xtls-rprx-direct" to "xtls-rprx-vision" for proxy "vless-flow"'])
   })
 
-  // mihomo pins the certificate and sing-box pins the public key, so nothing converts.
-  it('warns that a pinning fingerprint is dropped', () => {
+  // Both sides pin on the certificate digest, so only the encoding changes: hex to base64.
+  it('converts a pinning fingerprint into certificate_sha256', () => {
     const { config, warnings } = convert({
       proxies: [
-        { name: 'pinned', type: 'trojan', server: '1.2.3.4', port: 443, password: 'pw', fingerprint: '7EA15B96' },
+        {
+          name: 'pinned',
+          type: 'trojan',
+          server: '1.2.3.4',
+          port: 443,
+          password: 'pw',
+          fingerprint: '7EA15B96CE1E4D4C76CBF48EE86EA7CCA09653BE4E982C054C56DA347B0B9738',
+        },
       ],
     })
 
-    expect(warnings[0]).toContain('Dropped "fingerprint" from proxy "pinned"')
+    expect(outboundNamed(config, 'pinned')).toHaveProperty('tls.certificate_sha256', [
+      'fqFbls4eTUx2y/SO6G6nzKCWU75OmCwFTFbaNHsLlzg=',
+    ])
     expect(outboundNamed(config, 'pinned')).not.toHaveProperty('tls.utls')
+    expect(warnings).toEqual([])
   })
 
   it('warns that udp-relay-mode is dropped alongside udp-over-stream', () => {

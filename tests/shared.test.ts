@@ -87,9 +87,12 @@ describe('convertTLSTransport', () => {
     expect(keyOnly).toEqual({ enabled: true })
   })
 
-  it('never routes fingerprint into utls, which only names browsers', () => {
-    const result = convertTLSTransport(makeTLSProxy({ fingerprint: '7EA15B96CE1E4D4C' }))
-    expect(result).toEqual({ enabled: true })
+  // `fingerprint` pins a certificate; only `client-fingerprint` names a browser.
+  it('routes fingerprint into certificate_sha256 rather than utls', () => {
+    const result = convertTLSTransport(
+      makeTLSProxy({ fingerprint: '7EA15B96CE1E4D4C76CBF48EE86EA7CCA09653BE4E982C054C56DA347B0B9738' }),
+    )
+    expect(result).toEqual({ enabled: true, certificate_sha256: ['fqFbls4eTUx2y/SO6G6nzKCWU75OmCwFTFbaNHsLlzg='] })
   })
 
   it('maps client-fingerprint to utls', () => {
